@@ -1,6 +1,6 @@
 # Decentralized Secure File Storage (Blockchain Drive)
 
-A decentralized file storage system built using Ethereum and IPFS. This application allows users to securely upload files to IPFS and store the resulting hashes on the Ethereum blockchain via smart contracts. Users can manage their files, share access with others (with time-bound or permanent access), and revoke access as needed.
+A decentralized file storage system built using Ethereum and IPFS. This application allows users to securely upload files to IPFS and store the resulting hashes on the Ethereum blockchain via smart contracts.
 
 ## 🚀 Features
 
@@ -10,6 +10,10 @@ A decentralized file storage system built using Ethereum and IPFS. This applicat
 - **Direct Transfer:** Send files directly to another user's account.
 - **Categorization:** Categorize files when uploading for better organization.
 - **File Management:** View, share, and delete uploaded files from your account.
+
+## 📸 Screenshots
+
+![Application Screenshot](./screenshot/Screenshot%202026-07-01%20103522.png)
 
 ## 🛠️ Technology Stack
 
