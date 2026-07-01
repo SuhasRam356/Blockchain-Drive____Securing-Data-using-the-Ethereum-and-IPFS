@@ -17,6 +17,10 @@ A decentralized file storage system built using Ethereum and IPFS. This applicat
 
 ![Application Screenshot](./screenshot/Screenshot%202026-07-01%20103536.png)
 
+![Application Screenshot](./screenshot/Screenshot%202026-07-01%20103549.png)
+
+![Application Screenshot](./screenshot/Screenshot%202026-07-01%20104747.png)
+
 ## 🛠️ Technology Stack
 
 - **Frontend:** React.js, Vite, Tailwind CSS, Ethers.js
