@@ -11,6 +11,7 @@ import Navigation from './components/Navigation';
 import Files from './components/Files';
 import Dashboard from './components/Dashboard';
 import SharedLinkView from './components/SharedLinkView';
+import Faucet from './components/Faucet';
 import { Toaster } from 'react-hot-toast';
  
 
@@ -129,6 +130,8 @@ function App() {
       </div>
  
       <div id='files' className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-10 space-y-10">
+        <Faucet provider={provider} account={account} />
+        
         <Dashboard contract={contract} account={account} />
         
         <div className="glass-panel p-8 relative overflow-hidden">
