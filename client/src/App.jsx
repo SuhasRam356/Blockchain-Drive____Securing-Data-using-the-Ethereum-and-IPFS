@@ -9,6 +9,8 @@ import FileUpload from './components/FileUpload';
 import Display from './components/Display';
 import Navigation from './components/Navigation';
 import Files from './components/Files';
+import Dashboard from './components/Dashboard';
+import SharedLinkView from './components/SharedLinkView';
 import { Toaster } from 'react-hot-toast';
  
 
@@ -46,6 +48,21 @@ function App() {
         )
         setContract(contract);
         setProvider(provider)
+
+        // E2EE PKI Setup
+        try {
+            const currentPubKey = await contract.encryptionPublicKeys(address);
+            if (!currentPubKey || currentPubKey === "") {
+                const pubKey = await window.ethereum.request({
+                    method: 'eth_getEncryptionPublicKey',
+                    params: [address],
+                });
+                const tx = await contract.setEncryptionPublicKey(pubKey);
+                await tx.wait();
+            }
+        } catch (e) {
+            console.error("Failed to setup E2EE", e);
+        }
       }
       else{
         console.log("MetaMask is not installed")
@@ -66,6 +83,18 @@ function App() {
 
   )
 
+
+  const urlParams = new URLSearchParams(window.location.search);
+  const isShareLink = urlParams.has('hash');
+
+  if (isShareLink) {
+    return (
+      <div className="relative z-10 min-h-screen pb-20"> 
+        <Toaster position="bottom-right" />
+        <SharedLinkView />
+      </div>
+    );
+  }
 
   return (
     <div className="relative z-10 min-h-screen pb-20"> 
@@ -98,14 +127,16 @@ function App() {
       </div>
  
       <div id='files' className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-10 space-y-10">
+        <Dashboard contract={contract} account={account} />
+        
         <div className="glass-panel p-8 relative overflow-hidden">
           <div className="absolute top-0 right-0 w-64 h-64 bg-cyan-500/10 rounded-full blur-3xl -z-10 -mr-10 -mt-10"></div>
-          <Files contract={contract} account={account} title="My Files" />
+          <Files contract={contract} account={account} provider={provider} title="My Files" />
         </div>
         
         <div className="glass-panel p-8 relative overflow-hidden">
           <div className="absolute bottom-0 left-0 w-64 h-64 bg-purple-500/10 rounded-full blur-3xl -z-10 -ml-10 -mb-10"></div>
-          <Files contract={contract} account={account}  title="Shared With Me" shared='1' />
+          <Files contract={contract} account={account} provider={provider} title="Shared With Me" shared='1' />
         </div>
       </div>
     </div>

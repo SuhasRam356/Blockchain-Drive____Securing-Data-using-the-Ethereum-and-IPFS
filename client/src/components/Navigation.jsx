@@ -8,6 +8,7 @@ const navigation = [
   { name: 'Upload', href: '/', current: true },
   { name: 'View Files', href: "/#files", current: false },
   { name: 'Share', href: '/share', current: false },
+  { name: 'DAO', href: '/governance', current: false },
 ]
 
 function classNames(...classes) {
@@ -87,6 +88,13 @@ const Navigation = () => {
                         className="text-gray-300 hover:text-cyan-400 transition-colors px-3 py-2 text-sm font-semibold tracking-wide"
                       >
                         Share
+                      </Link>
+
+                      <Link
+                        to='/governance'
+                        className="text-gray-300 hover:text-cyan-400 transition-colors px-3 py-2 text-sm font-semibold tracking-wide"
+                      >
+                        DAO
                       </Link>
                     </div>
                   </div>

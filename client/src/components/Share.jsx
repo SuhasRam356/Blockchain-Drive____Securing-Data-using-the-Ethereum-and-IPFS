@@ -65,13 +65,26 @@ const Share = () => {
         const address = addressInput.value.trim();
         
         if (!address) {
-            toast.error("Please enter a valid Ethereum address");
+            toast.error("Please enter a valid Ethereum address or ENS name");
             return;
         }
 
         const task = async () => {
+            let finalAddress = address;
+            if (finalAddress.endsWith(".eth")) {
+                const ensProvider = new ethers.providers.JsonRpcProvider("https://cloudflare-eth.com");
+                const resolved = await ensProvider.resolveName(finalAddress);
+                if (resolved) {
+                    finalAddress = resolved;
+                } else {
+                    throw new Error(`Could not resolve ENS name: ${finalAddress}`);
+                }
+            } else if (!ethers.utils.isAddress(finalAddress)) {
+                throw new Error(`Invalid Ethereum address: ${finalAddress}`);
+            }
+
             const durationInMins = parseInt(duration);
-            const tx = await contract.allow(address, isNaN(durationInMins) ? 0 : durationInMins);
+            const tx = await contract.allow(finalAddress, isNaN(durationInMins) ? 0 : durationInMins);
             await tx.wait(); // Wait for blockchain confirmation
             await fetchAccessList(); // Refresh list without reloading page
             addressInput.value = ""; // clear input
@@ -81,7 +94,13 @@ const Share = () => {
         toast.promise(task(), {
             loading: 'Granting access on blockchain...',
             success: 'Access granted successfully!',
-            error: 'Failed to grant access. Please verify the address.'
+            error: (err) => {
+                console.error(err);
+                if (err.reason) return `Blockchain error: ${err.reason}`;
+                if (err.message && err.message.includes("Invalid Ethereum address")) return err.message;
+                if (err.message && err.message.includes("user rejected transaction")) return "Transaction rejected in MetaMask";
+                return 'Failed to grant access. Please verify the address.';
+            }
         });
     };
 
@@ -95,7 +114,12 @@ const Share = () => {
         toast.promise(task(), {
             loading: `Revoking access for ${address.substring(0, 6)}...`,
             success: 'Access revoked successfully!',
-            error: 'Failed to revoke access.'
+            error: (err) => {
+                console.error(err);
+                if (err.reason) return `Blockchain error: ${err.reason}`;
+                if (err.message && err.message.includes("user rejected transaction")) return "Transaction rejected in MetaMask";
+                return 'Failed to revoke access.';
+            }
         });
     };
 

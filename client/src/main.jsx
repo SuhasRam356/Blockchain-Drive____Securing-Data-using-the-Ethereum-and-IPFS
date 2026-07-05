@@ -6,6 +6,7 @@ import { Route, RouterProvider, createBrowserRouter, createRoutesFromElements } 
 import Files from './components/Files.jsx'
 import Share from './components/Share.jsx'
 import Layout from './components/Layout.jsx'
+import Governance from './components/Governance.jsx'
 
 const router = createBrowserRouter([
         {
@@ -23,6 +24,10 @@ const router = createBrowserRouter([
             {
               path: '/share',
               element: <Share />
+            },
+            {
+              path: '/governance',
+              element: <Governance />
             },
           ],
         }
