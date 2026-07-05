@@ -1,0 +1,32 @@
+type File @entity(immutable: false) {
+  id: ID!
+  url: String!
+  category: String!
+  owner: Bytes!
+  sender: Bytes!
+  timestamp: BigInt!
+}
+
+type Access @entity(immutable: false) {
+  id: ID! # ownerAddress-userAddress
+  owner: Bytes!
+  user: Bytes!
+  durationInMinutes: BigInt!
+  grantedAt: BigInt!
+  revokedAt: BigInt
+}
+
+type UserMetric @entity(immutable: false) {
+  id: ID! # address
+  totalFilesOwned: BigInt!
+  publicKey: String
+}
+
+type ActivityEvent @entity(immutable: true) {
+  id: ID! # txHash-logIndex
+  user: Bytes!
+  type: String! # "upload", "delete", "grant", "revoke"
+  text: String!
+  timestamp: BigInt!
+  txHash: Bytes!
+}

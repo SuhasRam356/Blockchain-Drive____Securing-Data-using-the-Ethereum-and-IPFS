@@ -33,13 +33,17 @@ const router = createBrowserRouter([
         }
       ])
  
+import { ApolloClient, InMemoryCache, ApolloProvider } from '@apollo/client';
+
+const client = new ApolloClient({
+  uri: 'http://localhost:8000/subgraphs/name/drive', // Local Graph Node URL
+  cache: new InMemoryCache(),
+});
+
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    
-    <RouterProvider
-    router={router}
-    
-    />
-  </React.StrictMode>,
-  
+    <ApolloProvider client={client}>
+      <RouterProvider router={router} />
+    </ApolloProvider>
+  </React.StrictMode>
 )

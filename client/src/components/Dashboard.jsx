@@ -2,166 +2,95 @@ import { useEffect, useState } from 'react';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
 import axios from 'axios';
 import { API_Key, API_Secret, JWT } from '../utils/constants';
+import { gql, useQuery } from '@apollo/client';
+
+const DASHBOARD_QUERY = gql`
+  query GetDashboardData($user: String!) {
+    userMetric(id: $user) {
+      totalFilesOwned
+    }
+    files(where: { owner: $user }) {
+      id
+      category
+    }
+    accesses(where: { owner: $user }) {
+      id
+      user
+      revokedAt
+    }
+    activityEvents(where: { user: $user }, orderBy: timestamp, orderDirection: desc, first: 15) {
+      id
+      type
+      text
+      timestamp
+      txHash
+    }
+  }
+`;
 
 export default function Dashboard({ contract, account }) {
-  const [fileStats, setFileStats] = useState([]);
-  const [totalFiles, setTotalFiles] = useState(0);
   const [storageUsedMB, setStorageUsedMB] = useState(0);
-  const [activeShares, setActiveShares] = useState(0);
-  const [expiredShares, setExpiredShares] = useState(0);
-  const [sharedUsers, setSharedUsers] = useState(0);
-  const [activityLog, setActivityLog] = useState([]);
-  const [loading, setLoading] = useState(true);
 
   const COLORS = ['#06b6d4', '#a855f7', '#3b82f6', '#f43f5e', '#10b981', '#f59e0b'];
 
+  const { data, loading, error } = useQuery(DASHBOARD_QUERY, {
+    variables: { user: account ? account.toLowerCase() : "" },
+    skip: !account,
+    pollInterval: 5000, // Poll every 5s for real-time updates since we are on local
+  });
+
   useEffect(() => {
     let isMounted = true;
-    
-    const fetchStats = async () => {
-      if (contract && account) {
-        setLoading(true);
-        try {
-          // 1. Total Files & Categories
-          const files = await contract.display(account);
-          if (!isMounted) return;
-          setTotalFiles(files.length);
-          
-          const categories = {};
-          files.forEach(file => {
-            const catString = file.category || "General";
-            let cat = catString.split('|')[0].trim();
-            if (!cat) cat = "General";
-            else cat = cat.charAt(0).toUpperCase() + cat.slice(1).toLowerCase();
-            categories[cat] = (categories[cat] || 0) + 1;
-          });
-
-          setFileStats(Object.keys(categories).map(key => ({ name: key, value: categories[key] })));
-
-          // 2. Shares Data
-          if (contract.shareAccess) {
-            const shares = await contract.shareAccess();
-            setSharedUsers(shares.length);
-            
-            let active = 0;
-            let expired = 0;
-            shares.forEach(share => {
-               if (share.access) active++;
-               else expired++;
-            });
-            setActiveShares(active);
-            setExpiredShares(expired);
-          }
-
-          // 3. Storage Used via Pinata API
-          try {
-            const headers = JWT 
-              ? { Authorization: `Bearer ${JWT}` }
-              : { pinata_api_key: API_Key, pinata_secret_api_key: API_Secret };
-            
-            const pinataRes = await axios.get("https://api.pinata.cloud/data/userPinnedDataTotal", { headers });
-            const bytes = parseInt(pinataRes.data);
-            if (!isNaN(bytes)) {
-                setStorageUsedMB((bytes / (1024 * 1024)).toFixed(2));
-            }
-          } catch (e) {
-            console.error("Pinata API error:", e);
-            // Fallback estimation if API fails (approx 2.5MB per file)
-            setStorageUsedMB((files.length * 2.5).toFixed(2)); 
-          }
-
-          // 4. Activity Log (Events)
-          const filterAdded = contract.filters.FileAdded(account);
-          const filterDeleted = contract.filters.FileDeleted(account);
-          
-          // These events might not exist in older ABI versions, so we use try/catch
-          let grantedLogs = [];
-          let revokedLogs = [];
-          let addedLogs = [];
-          let deletedLogs = [];
-          
-          try {
-              const blockNumber = await contract.provider.getBlockNumber();
-              const fromBlock = Math.max(0, blockNumber - 10000); // Last 10000 blocks
-
-              const promises = [
-                  contract.queryFilter(filterAdded, fromBlock),
-                  contract.queryFilter(filterDeleted, fromBlock)
-              ];
-              
-              if (contract.filters.AccessGranted) promises.push(contract.queryFilter(contract.filters.AccessGranted(account), fromBlock));
-              if (contract.filters.AccessRevoked) promises.push(contract.queryFilter(contract.filters.AccessRevoked(account), fromBlock));
-
-              const results = await Promise.all(promises);
-              addedLogs = results[0] || [];
-              deletedLogs = results[1] || [];
-              grantedLogs = results[2] || [];
-              revokedLogs = results[3] || [];
-              
-              const blockCache = {};
-              const getBlockTime = async (bNumber) => {
-                 if (!blockCache[bNumber]) {
-                    const block = await contract.provider.getBlock(bNumber);
-                    blockCache[bNumber] = block.timestamp;
-                 }
-                 return blockCache[bNumber];
-              };
-
-              const processLogs = async (logs, type, textFn) => {
-                 return Promise.all(logs.map(async (log) => {
-                    const timestamp = await getBlockTime(log.blockNumber);
-                    return {
-                       id: log.transactionHash,
-                       type,
-                       text: textFn(log),
-                       timestamp,
-                       date: new Date(timestamp * 1000)
-                    };
-                 }));
-              };
-
-              const allLogs = [];
-              allLogs.push(...(await processLogs(addedLogs, 'upload', () => 'Uploaded a new file')));
-              allLogs.push(...(await processLogs(deletedLogs, 'delete', () => 'Deleted a file')));
-              allLogs.push(...(await processLogs(grantedLogs, 'grant', (l) => `Granted access to ${l.args.user.substring(0,6)}...`)));
-              allLogs.push(...(await processLogs(revokedLogs, 'revoke', (l) => `Revoked access from ${l.args.user.substring(0,6)}...`)));
-
-              // Sort descending by timestamp
-              allLogs.sort((a, b) => b.timestamp - a.timestamp);
-              if (isMounted) setActivityLog(allLogs.slice(0, 15)); // Top 15
-
-          } catch (e) {
-              console.log("Event log fetching issue", e);
-          }
-
-        } catch (e) {
-          console.error("Could not load stats", e);
+    const fetchStorage = async () => {
+      try {
+        const headers = JWT 
+          ? { Authorization: `Bearer ${JWT}` }
+          : { pinata_api_key: API_Key, pinata_secret_api_key: API_Secret };
+        
+        const pinataRes = await axios.get("https://api.pinata.cloud/data/userPinnedDataTotal", { headers });
+        const bytes = parseInt(pinataRes.data);
+        if (!isNaN(bytes) && isMounted) {
+            setStorageUsedMB((bytes / (1024 * 1024)).toFixed(2));
         }
-        if (isMounted) setLoading(false);
+      } catch (e) {
+        console.error("Pinata API error:", e);
+        if (data && data.userMetric && isMounted) {
+           setStorageUsedMB((parseInt(data.userMetric.totalFilesOwned) * 2.5).toFixed(2)); 
+        }
       }
     };
-    fetchStats();
-
-    if (contract && account) {
-      const onEvent = () => fetchStats();
-      contract.on("FileAdded", onEvent);
-      contract.on("FileDeleted", onEvent);
-      if(contract.filters.AccessGranted) contract.on("AccessGranted", onEvent);
-      if(contract.filters.AccessRevoked) contract.on("AccessRevoked", onEvent);
-      
-      return () => {
-        isMounted = false;
-        contract.off("FileAdded", onEvent);
-        contract.off("FileDeleted", onEvent);
-        if(contract.filters.AccessGranted) contract.off("AccessGranted", onEvent);
-        if(contract.filters.AccessRevoked) contract.off("AccessRevoked", onEvent);
-      };
-    }
-    
+    if (account) fetchStorage();
     return () => { isMounted = false; };
-  }, [contract, account]);
+  }, [account, data]);
 
-  if (!account || totalFiles === 0) return null;
+  if (!account || (data && !data.userMetric)) return null;
+
+  const totalFiles = data?.userMetric?.totalFilesOwned || 0;
+  
+  const categories = {};
+  if (data?.files) {
+    data.files.forEach(file => {
+      const catString = file.category || "General";
+      let cat = catString.split('|')[0].trim();
+      if (!cat) cat = "General";
+      else cat = cat.charAt(0).toUpperCase() + cat.slice(1).toLowerCase();
+      categories[cat] = (categories[cat] || 0) + 1;
+    });
+  }
+  const fileStats = Object.keys(categories).map(key => ({ name: key, value: categories[key] }));
+
+  let activeShares = 0;
+  let expiredShares = 0;
+  let sharedUsers = 0;
+  if (data?.accesses) {
+    sharedUsers = data.accesses.length;
+    data.accesses.forEach(access => {
+       if (access.revokedAt === null) activeShares++;
+       else expiredShares++;
+    });
+  }
+
+  const activityLog = data?.activityEvents || [];
 
   return (
     <div className="w-full mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-10 animate-fadeIn">
@@ -270,10 +199,10 @@ export default function Dashboard({ contract, account }) {
                     </div>
                     <div className="flex-1 flex flex-col justify-center">
                       <p className="text-white font-medium text-[15px]">{log.text}</p>
-                      <p className="text-xs text-slate-400 mt-1 font-mono tracking-wide">{log.date.toLocaleString()}</p>
+                      <p className="text-xs text-slate-400 mt-1 font-mono tracking-wide">{new Date(parseInt(log.timestamp) * 1000).toLocaleString()}</p>
                     </div>
                     <div className="shrink-0 flex flex-col justify-center text-xs text-slate-500 font-mono self-center">
-                        <a href={`https://localhost:8545/tx/${log.id}`} onClick={(e) => e.preventDefault()} className="hover:text-cyan-400 transition-colors flex items-center gap-1 cursor-pointer" title={log.id}>
+                        <a href={`https://localhost:8545/tx/${log.txHash}`} onClick={(e) => e.preventDefault()} className="hover:text-cyan-400 transition-colors flex items-center gap-1 cursor-pointer" title={log.txHash}>
                             Tx
                             <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
                         </a>
