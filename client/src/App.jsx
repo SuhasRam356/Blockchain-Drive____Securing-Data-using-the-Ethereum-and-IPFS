@@ -57,7 +57,9 @@ function App() {
                     method: 'eth_getEncryptionPublicKey',
                     params: [address],
                 });
-                const tx = await contract.setEncryptionPublicKey(pubKey);
+                const message = `Confirm E2EE Public Key: ${pubKey}`;
+                const signature = await signer.signMessage(message);
+                const tx = await contract.setEncryptionPublicKey(pubKey, signature);
                 await tx.wait();
             }
         } catch (e) {
