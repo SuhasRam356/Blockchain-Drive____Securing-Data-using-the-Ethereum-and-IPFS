@@ -1,9 +1,11 @@
 import { useState } from "react"
 import toast from 'react-hot-toast';
 import axios from 'axios';
-import CryptoJS from 'crypto-js';
+import * as CryptoJSImport from "crypto-js";
+const CryptoJS = CryptoJSImport.default || CryptoJSImport;
 import { ethers } from 'ethers';
 import FileUpload from './FileUpload';
+import { decodeStego } from '../utils/steganography';
 
 export default function Files({ contract, account, shared, title }) {
   const [allfiles, setAllFiles] = useState([])
@@ -18,6 +20,7 @@ export default function Files({ contract, account, shared, title }) {
   const [historyList, setHistoryList] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyFileUrl, setHistoryFileUrl] = useState(null);
+  const [historyIsStego, setHistoryIsStego] = useState(false);
 
   const getCategoryInfo = (catString) => {
     if (!catString) return { name: "General", tags: [] };
@@ -133,7 +136,7 @@ export default function Files({ contract, account, shared, title }) {
     });
   };
 
-  const decryptAndOpen = async (url) => {
+  const decryptAndOpen = async (url, isStego = false) => {
     const task = async () => {
         let aesKeyToUse = "";
         
@@ -145,13 +148,14 @@ export default function Files({ contract, account, shared, title }) {
         
         const encryptedAesKeyHex = await contract.encryptedAESKeys(url);
         if (encryptedAesKeyHex && encryptedAesKeyHex !== "MANUAL" && encryptedAesKeyHex !== "") {
-             // Decrypt AES key using MetaMask Private Key
-             toast("Decrypting E2EE Key with MetaMask...", { icon: '🔐' });
-             const decrypted = await window.ethereum.request({
-                 method: 'eth_decrypt',
-                 params: [encryptedAesKeyHex, account]
-             });
-             aesKeyToUse = decrypted;
+             // Decrypt AES key using deterministic signature key
+             toast("Deriving deterministic key & decrypting...", { icon: '🔐' });
+             const provider = new ethers.providers.Web3Provider(window.ethereum);
+             const signer = provider.getSigner();
+             const { getDeterministicKey, decryptAESKey } = await import('../utils/encryption');
+             
+             const secretKey = await getDeterministicKey(signer);
+             aesKeyToUse = await decryptAESKey(encryptedAesKeyHex, secretKey);
         } else if (!encryptedAesKeyHex || encryptedAesKeyHex === "") {
              // Unencrypted file
              window.open(url, '_blank');
@@ -160,8 +164,20 @@ export default function Files({ contract, account, shared, title }) {
              throw new Error("No valid E2EE key found.");
         }
         
-        const response = await axios.get(url, { responseType: 'text' });
-        const ciphertext = response.data;
+        const response = await axios.get(url, { responseType: isStego ? 'blob' : 'text' });
+        let ciphertext = "";
+        
+        if (isStego) {
+            toast("Extracting hidden data from image pixels (Steganography)...", { icon: '🕵️' });
+            try {
+                ciphertext = await decodeStego(response.data);
+            } catch (err) {
+                console.error("Stego decode error:", err);
+                throw new Error("Failed to extract hidden data from image.");
+            }
+        } else {
+            ciphertext = response.data;
+        }
         
         const bytes = CryptoJS.AES.decrypt(ciphertext, aesKeyToUse);
         const originalDataURL = bytes.toString(CryptoJS.enc.Utf8);
@@ -199,8 +215,9 @@ export default function Files({ contract, account, shared, title }) {
       setShowUpdateModal(true);
   };
 
-  const handleHistoryClick = async (fileUrl) => {
-      setHistoryFileUrl(fileUrl);
+  const handleHistoryClick = async (fileObj) => {
+      setHistoryFileUrl(fileObj.url);
+      setHistoryIsStego(fileObj.category.includes('#Stego'));
       setShowHistoryModal(true);
       setHistoryLoading(true);
       try {
@@ -349,14 +366,14 @@ export default function Files({ contract, account, shared, title }) {
                       Copy Shareable Link
                     </button>
                     <button 
-                      onClick={() => decryptAndOpen(fileObj.url)}
+                      onClick={() => decryptAndOpen(fileObj.url, fileObj.category.includes('#Stego'))}
                       className="w-full py-2.5 bg-white/5 hover:bg-cyan-500/20 border border-white/10 hover:border-cyan-500/50 rounded-lg text-cyan-400 transition-colors font-semibold text-sm shadow-sm"
                     >
                       Open File locally
                     </button>
                     
                     <button 
-                      onClick={() => handleHistoryClick(fileObj.url)}
+                      onClick={() => handleHistoryClick(fileObj)}
                       className="w-full py-2.5 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 hover:border-blue-500/50 rounded-lg text-blue-400 transition-colors font-semibold text-sm shadow-sm"
                     >
                       View Version History
@@ -463,7 +480,7 @@ export default function Files({ contract, account, shared, title }) {
                             
                             <div className="flex gap-2 shrink-0">
                                 <button 
-                                    onClick={() => decryptAndOpen(ver.url)}
+                                    onClick={() => decryptAndOpen(ver.url, historyIsStego)}
                                     className="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 rounded text-xs font-semibold text-white transition-colors"
                                 >
                                     View

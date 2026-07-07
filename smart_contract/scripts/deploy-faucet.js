@@ -34,8 +34,21 @@ async function main() {
     await tx.wait();
     
     console.log("Faucet successfully funded!");
-    console.log("Add this to your client/.env file:");
-    console.log(`VITE_FAUCET_ADDRESS=${faucetAddress}`);
+    
+    // Write to env file
+    const fs = require('fs');
+    const envPath = '../client/.env';
+    let envContent = '';
+    if (fs.existsSync(envPath)) {
+        envContent = fs.readFileSync(envPath, 'utf8');
+    }
+    if (envContent.includes('VITE_FAUCET_ADDRESS=')) {
+        envContent = envContent.replace(/VITE_FAUCET_ADDRESS=.*/, `VITE_FAUCET_ADDRESS="${faucetAddress}"`);
+    } else {
+        envContent += `\nVITE_FAUCET_ADDRESS="${faucetAddress}"`;
+    }
+    fs.writeFileSync(envPath, envContent);
+    console.log("Updated client/.env with Faucet address!");
 }
 
 main().catch(console.error);

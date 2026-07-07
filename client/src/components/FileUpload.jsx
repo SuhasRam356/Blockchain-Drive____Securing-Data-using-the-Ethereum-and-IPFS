@@ -3,9 +3,10 @@ import axios from "axios";
 import "./FileUpload.css";
 import { API_Key, API_Secret, JWT } from "../utils/constants";
 import toast from "react-hot-toast";
-import CryptoJS from "crypto-js";
+import * as CryptoJSImport from "crypto-js";
+const CryptoJS = CryptoJSImport.default || CryptoJSImport;
 import { ethers } from "ethers";
-import { GoogleGenAI } from '@google/genai';
+import { encodeStego } from "../utils/steganography";
 
 const readFileAsDataURL = (file) => {
   return new Promise((resolve, reject) => {
@@ -24,6 +25,11 @@ const FileUpload = ({ contract, account, provider, updateTarget = null, onUpload
   const [category, setCategory] = useState("General");
   const [uploadProgress, setUploadProgress] = useState(0);
   
+  // Steganography State
+  const [useStego, setUseStego] = useState(false);
+  const [coverImage, setCoverImage] = useState(null);
+  const [coverImageName, setCoverImageName] = useState("");
+  
   // AI State
   const [aiTags, setAiTags] = useState([]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -33,6 +39,7 @@ const FileUpload = ({ contract, account, provider, updateTarget = null, onUpload
       if (!GEMINI_API_KEY) return;
       setIsAnalyzing(true);
       try {
+          const { GoogleGenAI } = await import('@google/genai');
           const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
           const base64 = await readFileAsDataURL(file);
           
@@ -145,20 +152,19 @@ const FileUpload = ({ contract, account, provider, updateTarget = null, onUpload
                  // Encrypt file with AES key
                  const base64data = await readFileAsDataURL(files[0]);
                  const ciphertext = CryptoJS.AES.encrypt(base64data, aesKey).toString();
-                 const blob = new Blob([ciphertext], { type: 'text/plain' });
-                 fileDataToUpload = new File([blob], files[0].name + ".enc", { type: "text/plain" });
-
-                 // Encrypt AES key with Receiver's Public Key
-                 // We use dynamic import for eth-sig-util to avoid Vite build issues if not polyfilled
-                 const sigUtil = await import('@metamask/eth-sig-util');
-                 const Buffer = (await import('buffer')).Buffer;
                  
-                 const encryptedObj = sigUtil.encrypt({
-                     publicKey: pubKey,
-                     data: aesKey,
-                     version: 'x25519-xsalsa20-poly1305'
-                 });
-                 encryptedAesKeyHex = "0x" + Buffer.from(JSON.stringify(encryptedObj), 'utf8').toString('hex');
+                 if (useStego) {
+                     if (!coverImage) throw new Error("Please select a cover image for steganography.");
+                     toast("Hiding ciphertext inside cover image (Steganography)...", { icon: '🕵️' });
+                     fileDataToUpload = await encodeStego(coverImage, ciphertext);
+                 } else {
+                     const blob = new Blob([ciphertext], { type: 'text/plain' });
+                     fileDataToUpload = new File([blob], files[0].name + ".enc", { type: "text/plain" });
+                 }
+
+                 // Encrypt AES key with Receiver's Public Key using new centralized module
+                 const { encryptAESKey } = await import('../utils/encryption');
+                 encryptedAesKeyHex = await encryptAESKey(aesKey, pubKey);
 
             // Signature verification removed - Blockchain inherently verifies sender via msg.sender
             singleFileHashHex = ethers.constants.HashZero;
@@ -183,8 +189,9 @@ const FileUpload = ({ contract, account, provider, updateTarget = null, onUpload
               }
             });
             uploadedHashes.push(`https://gateway.pinata.cloud/ipfs/${resFile.data.IpfsHash}`);
-
-            const combinedCategory = aiTags.length > 0 ? `${category}|${aiTags.join(',')}` : category;
+            
+            const currentTags = useStego && !aiTags.includes('#Stego') ? [...aiTags, '#Stego'] : aiTags;
+            const combinedCategory = currentTags.length > 0 ? `${category}|${currentTags.join(',')}` : category;
 
             if (updateTarget) {
                 if (contract.updateFile) {
@@ -270,6 +277,9 @@ const FileUpload = ({ contract, account, provider, updateTarget = null, onUpload
           setIsUploading(false);
           setUploadProgress(0);
           setAiTags([]);
+          setUseStego(false);
+          setCoverImage(null);
+          setCoverImageName("");
           return msg;
         },
         error: (err) => {
@@ -293,6 +303,9 @@ const FileUpload = ({ contract, account, provider, updateTarget = null, onUpload
         setReceiverAddress("");
         setUploadProgress(0);
         setAiTags([]);
+        setUseStego(false);
+        setCoverImage(null);
+        setCoverImageName("");
     }
   };
 
@@ -336,6 +349,44 @@ const FileUpload = ({ contract, account, provider, updateTarget = null, onUpload
             )}
           </div>
         </div>
+
+        {/* Steganography Toggle & Cover Image Input */}
+        {files.length === 1 && (
+          <div className="bg-slate-900/50 p-4 rounded-xl border border-slate-700">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h4 className="text-white font-medium">Use Steganography</h4>
+                <p className="text-xs text-slate-400">Hide the encrypted file inside a normal picture (Spy Mode)</p>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input type="checkbox" className="sr-only peer" checked={useStego} onChange={() => setUseStego(!useStego)} />
+                <div className="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-500"></div>
+              </label>
+            </div>
+            
+            {useStego && (
+              <div className="relative group cursor-pointer mt-3">
+                <input
+                  type="file"
+                  accept="image/png, image/jpeg"
+                  onChange={(e) => {
+                      if (e.target.files.length > 0) {
+                          setCoverImage(e.target.files[0]);
+                          setCoverImageName(e.target.files[0].name);
+                      }
+                  }}
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                />
+                <div className={`glass-input border-dashed border-2 flex items-center justify-between py-3 px-4 transition-colors ${coverImage ? 'border-purple-400 bg-purple-900/20' : 'border-slate-600 hover:border-purple-500 hover:bg-slate-800/50'}`}>
+                  <div className="flex items-center gap-3">
+                    <svg className={`w-6 h-6 ${coverImage ? 'text-purple-400' : 'text-slate-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                    <span className="text-sm text-slate-300">{coverImageName || "Select Cover Image (PNG/JPG)"}</span>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
         
         {/* Receiver Address Input */}
         <div>

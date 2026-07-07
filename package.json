@@ -1,0 +1,11 @@
+{
+  "name": "blockchain-drive",
+  "version": "1.0.0",
+  "description": "Blockchain Drive Startup Scripts",
+  "scripts": {
+    "start": "node start-sepolia.js",
+    "start:dev": "node start-dev.js",
+    "stop": "cd subgraph && docker-compose down"
+  },
+  "dependencies": {}
+}

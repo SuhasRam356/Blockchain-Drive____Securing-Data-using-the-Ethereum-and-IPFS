@@ -53,18 +53,26 @@ function App() {
         // E2EE PKI Setup
         try {
             const currentPubKey = await contract.encryptionPublicKeys(address);
-            if (!currentPubKey || currentPubKey === "") {
-                const pubKey = await window.ethereum.request({
-                    method: 'eth_getEncryptionPublicKey',
-                    params: [address],
-                });
-                const message = `Confirm E2EE Public Key: ${pubKey}`;
-                const signature = await signer.signMessage(message);
-                const tx = await contract.setEncryptionPublicKey(pubKey, signature);
-                await tx.wait();
+            const isMigrated = localStorage.getItem('migratedToSepolia_' + address);
+            
+            if (!currentPubKey || currentPubKey === "" || !isMigrated) {
+                const { getDeterministicKey, derivePublicKey } = await import('./utils/encryption');
+                const secretKey = await getDeterministicKey(signer);
+                const pubKey = derivePublicKey(secretKey);
+                
+                if (currentPubKey !== pubKey) {
+                    const message = "Confirm E2EE Public Key: " + pubKey;
+                    const signature = await signer.signMessage(message);
+                    const tx = await contract.setEncryptionPublicKey(pubKey, signature);
+                    await tx.wait();
+                }
+                localStorage.setItem('migratedToSepolia_' + address, 'true');
             }
         } catch (e) {
             console.error("Failed to setup E2EE", e);
+            import('react-hot-toast').then(toast => {
+                toast.default.error("E2EE Setup Error: " + (e.reason || e.message));
+            });
         }
       }
       else{
