@@ -1,4 +1,4 @@
-specVersion: 1.0.0
+specVersion: 0.0.8
 indexerHints:
   prune: auto
 schema:
@@ -6,11 +6,11 @@ schema:
 dataSources:
   - kind: ethereum
     name: UploadUpgradeableV6
-    network: mainnet
+    network: sepolia
     source:
-      address: "0x0000000000000000000000000000000000000000"
+      address: "0xd7F39943769411C40470DE6151a892557C2ecf02"
       abi: UploadUpgradeableV6
-      startBlock: 0
+      startBlock: 11219910
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.7

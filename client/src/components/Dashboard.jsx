@@ -2,95 +2,146 @@ import { useEffect, useState } from 'react';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
 import axios from 'axios';
 import { API_Key, API_Secret, JWT } from '../utils/constants';
-import { gql, useQuery } from '@apollo/client';
-
-const DASHBOARD_QUERY = gql`
-  query GetDashboardData($user: String!) {
-    userMetric(id: $user) {
-      totalFilesOwned
-    }
-    files(where: { owner: $user }) {
-      id
-      category
-    }
-    accesses(where: { owner: $user }) {
-      id
-      user
-      revokedAt
-    }
-    activityEvents(where: { user: $user }, orderBy: timestamp, orderDirection: desc, first: 15) {
-      id
-      type
-      text
-      timestamp
-      txHash
-    }
-  }
-`;
 
 export default function Dashboard({ contract, account }) {
   const [storageUsedMB, setStorageUsedMB] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [totalFiles, setTotalFiles] = useState(0);
+  const [fileStats, setFileStats] = useState([]);
+  const [sharedUsers, setSharedUsers] = useState(0);
+  const [activeShares, setActiveShares] = useState(0);
+  const [expiredShares, setExpiredShares] = useState(0);
+  const [activityLog, setActivityLog] = useState([]);
 
   const COLORS = ['#06b6d4', '#a855f7', '#3b82f6', '#f43f5e', '#10b981', '#f59e0b'];
 
-  const { data, loading, error } = useQuery(DASHBOARD_QUERY, {
-    variables: { user: account ? account.toLowerCase() : "" },
-    skip: !account,
-    pollInterval: 5000, // Poll every 5s for real-time updates since we are on local
-  });
-
   useEffect(() => {
     let isMounted = true;
-    const fetchStorage = async () => {
+
+    const fetchDashboardData = async () => {
+      if (!account || !contract) return;
+      setLoading(true);
+
       try {
-        const headers = JWT 
-          ? { Authorization: `Bearer ${JWT}` }
-          : { pinata_api_key: API_Key, pinata_secret_api_key: API_Secret };
-        
-        const pinataRes = await axios.get("https://api.pinata.cloud/data/userPinnedDataTotal", { headers });
-        const bytes = parseInt(pinataRes.data);
-        if (!isNaN(bytes) && isMounted) {
-            setStorageUsedMB((bytes / (1024 * 1024)).toFixed(2));
+        // 1. Fetch File Count and Categories
+        const countBig = await contract.getFileCount(account);
+        const count = countBig.toNumber();
+        setTotalFiles(count);
+
+        let files = [];
+        if (count > 0) {
+           files = await contract.displayPage(account, 0, count);
         }
+
+        const categories = {};
+        files.forEach(file => {
+          const catString = file.category || "General";
+          let cat = catString.split('|')[0].trim();
+          if (!cat) cat = "General";
+          else cat = cat.charAt(0).toUpperCase() + cat.slice(1).toLowerCase();
+          categories[cat] = (categories[cat] || 0) + 1;
+        });
+        setFileStats(Object.keys(categories).map(key => ({ name: key, value: categories[key] })));
+
+        // 2. Fetch Storage Used
+        try {
+          const headers = JWT 
+            ? { Authorization: `Bearer ${JWT}` }
+            : { pinata_api_key: API_Key, pinata_secret_api_key: API_Secret };
+          
+          const pinataRes = await axios.get("https://api.pinata.cloud/data/userPinnedDataTotal", { headers });
+          const bytes = parseInt(pinataRes.data);
+          if (!isNaN(bytes)) {
+              setStorageUsedMB((bytes / (1024 * 1024)).toFixed(2));
+          }
+        } catch (e) {
+          console.error("Pinata API error:", e);
+          setStorageUsedMB((count * 2.5).toFixed(2)); 
+        }
+
+        // 3. Fetch Events (Activity & Shares)
+        const startBlock = 11219910;
+        const addFilter = contract.filters.FileAdded(account);
+        const delFilter = contract.filters.FileDeleted(account);
+        const grantFilter = contract.filters.AccessGranted(account);
+        const revokeFilter = contract.filters.AccessRevoked(account);
+
+        const [addLogs, delLogs, grantLogs, revokeLogs] = await Promise.all([
+            contract.queryFilter(addFilter, startBlock),
+            contract.queryFilter(delFilter, startBlock),
+            contract.queryFilter(grantFilter, startBlock),
+            contract.queryFilter(revokeFilter, startBlock)
+        ]);
+
+        // Process Accesses
+        const accessMap = {}; // user => { grantedAt, revokedAt }
+        grantLogs.forEach(log => {
+           const user = log.args[1];
+           if (!accessMap[user] || log.blockNumber > accessMap[user].blockNumber) {
+               accessMap[user] = { revokedAt: null, blockNumber: log.blockNumber };
+           }
+        });
+        revokeLogs.forEach(log => {
+           const user = log.args[1];
+           if (accessMap[user] && log.blockNumber > accessMap[user].blockNumber) {
+               accessMap[user].revokedAt = log.blockNumber;
+               accessMap[user].blockNumber = log.blockNumber;
+           }
+        });
+
+        let active = 0, expired = 0;
+        const sharedAddresses = Object.keys(accessMap);
+        sharedAddresses.forEach(user => {
+            if (accessMap[user].revokedAt === null) active++;
+            else expired++;
+        });
+        setSharedUsers(sharedAddresses.length);
+        setActiveShares(active);
+        setExpiredShares(expired);
+
+        // Process Activity Log
+        let events = [];
+        addLogs.forEach(log => events.push({ type: 'upload', text: 'Uploaded file to IPFS', txHash: log.transactionHash, blockNumber: log.blockNumber }));
+        delLogs.forEach(log => events.push({ type: 'delete', text: 'Deleted file from IPFS', txHash: log.transactionHash, blockNumber: log.blockNumber }));
+        grantLogs.forEach(log => events.push({ type: 'grant', text: `Granted access to ${log.args[1].substring(0, 6)}...`, txHash: log.transactionHash, blockNumber: log.blockNumber }));
+        revokeLogs.forEach(log => events.push({ type: 'revoke', text: `Revoked access from ${log.args[1].substring(0, 6)}...`, txHash: log.transactionHash, blockNumber: log.blockNumber }));
+
+        // Sort descending by blockNumber
+        events.sort((a, b) => b.blockNumber - a.blockNumber);
+        events = events.slice(0, 15); // keep top 15
+
+        // Fetch block timestamps for the top 15 events
+        const uniqueBlocks = [...new Set(events.map(e => e.blockNumber))];
+        const blockTimestamps = {};
+        await Promise.all(uniqueBlocks.map(async b => {
+            try {
+                const blk = await contract.provider.getBlock(b);
+                blockTimestamps[b] = blk.timestamp;
+            } catch(e) { blockTimestamps[b] = 0; }
+        }));
+
+        events.forEach(e => {
+            e.timestamp = blockTimestamps[e.blockNumber] || 0;
+            e.id = e.txHash;
+        });
+
+        if (isMounted) {
+            setActivityLog(events);
+            setLoading(false);
+        }
+
       } catch (e) {
-        console.error("Pinata API error:", e);
-        if (data && data.userMetric && isMounted) {
-           setStorageUsedMB((parseInt(data.userMetric.totalFilesOwned) * 2.5).toFixed(2)); 
-        }
+         console.error("Dashboard data fetch error:", e);
+         if (isMounted) setLoading(false);
       }
     };
-    if (account) fetchStorage();
+
+    fetchDashboardData();
+
     return () => { isMounted = false; };
-  }, [account, data]);
+  }, [account, contract]);
 
-  if (!account || (data && !data.userMetric)) return null;
-
-  const totalFiles = data?.userMetric?.totalFilesOwned || 0;
-  
-  const categories = {};
-  if (data?.files) {
-    data.files.forEach(file => {
-      const catString = file.category || "General";
-      let cat = catString.split('|')[0].trim();
-      if (!cat) cat = "General";
-      else cat = cat.charAt(0).toUpperCase() + cat.slice(1).toLowerCase();
-      categories[cat] = (categories[cat] || 0) + 1;
-    });
-  }
-  const fileStats = Object.keys(categories).map(key => ({ name: key, value: categories[key] }));
-
-  let activeShares = 0;
-  let expiredShares = 0;
-  let sharedUsers = 0;
-  if (data?.accesses) {
-    sharedUsers = data.accesses.length;
-    data.accesses.forEach(access => {
-       if (access.revokedAt === null) activeShares++;
-       else expiredShares++;
-    });
-  }
-
-  const activityLog = data?.activityEvents || [];
+  if (!account) return null;
 
   return (
     <div className="w-full mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-10 animate-fadeIn">
@@ -137,7 +188,7 @@ export default function Dashboard({ contract, account }) {
           <div className="absolute bottom-0 left-0 w-64 h-64 bg-cyan-500/10 rounded-full blur-3xl -z-10 -ml-10 -mb-10"></div>
           {loading ? (
              <div className="animate-spin h-8 w-8 border-4 border-cyan-500 border-t-transparent rounded-full"></div>
-          ) : (
+          ) : fileStats.length > 0 ? (
              <ResponsiveContainer width="100%" height="100%">
                <PieChart>
                  <Pie
@@ -160,8 +211,10 @@ export default function Dashboard({ contract, account }) {
                  />
                </PieChart>
              </ResponsiveContainer>
+          ) : (
+             <p className="text-slate-400 text-center mt-10">No categories found.</p>
           )}
-          {!loading && (
+          {!loading && fileStats.length > 0 && (
              <div className="mt-4 flex gap-3 flex-wrap justify-center overflow-y-auto max-h-24 no-scrollbar">
                {fileStats.map((stat, index) => (
                  <div key={index} className="flex items-center gap-1.5 text-xs text-slate-300">
@@ -202,7 +255,7 @@ export default function Dashboard({ contract, account }) {
                       <p className="text-xs text-slate-400 mt-1 font-mono tracking-wide">{new Date(parseInt(log.timestamp) * 1000).toLocaleString()}</p>
                     </div>
                     <div className="shrink-0 flex flex-col justify-center text-xs text-slate-500 font-mono self-center">
-                        <a href={`https://localhost:8545/tx/${log.txHash}`} onClick={(e) => e.preventDefault()} className="hover:text-cyan-400 transition-colors flex items-center gap-1 cursor-pointer" title={log.txHash}>
+                        <a href={`https://sepolia.etherscan.io/tx/${log.txHash}`} target="_blank" rel="noopener noreferrer" className="hover:text-cyan-400 transition-colors flex items-center gap-1 cursor-pointer" title={log.txHash}>
                             Tx
                             <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
                         </a>

@@ -2,6 +2,8 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App.jsx'
 import './index.css'
+import { ApolloClient, InMemoryCache, HttpLink } from '@apollo/client';
+import { ApolloProvider } from '@apollo/client/react';
 import { Route, RouterProvider, createBrowserRouter, createRoutesFromElements } from 'react-router-dom'
 import Files from './components/Files.jsx'
 import Share from './components/Share.jsx'
@@ -32,11 +34,9 @@ const router = createBrowserRouter([
           ],
         }
       ])
- 
-import { ApolloClient, InMemoryCache, ApolloProvider } from '@apollo/client';
 
 const client = new ApolloClient({
-  uri: 'http://localhost:8000/subgraphs/name/drive', // Local Graph Node URL
+  link: new HttpLink({ uri: 'http://localhost:8000/subgraphs/name/blockchain-drive/subgraph' }),
   cache: new InMemoryCache(),
 });
 
