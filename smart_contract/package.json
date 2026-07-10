@@ -1,4 +1,15 @@
 {
+  "name": "@suhasram356/blockchain-drive-contracts",
+  "version": "1.0.1",
+  "description": "Smart contracts for Blockchain Drive",
+  "main": "index.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/SuhasRam356/Blockchain-Drive____Securing-Data-using-the-Ethereum-and-IPFS.git"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
+  },
   "devDependencies": {
     "@nomicfoundation/hardhat-chai-matchers": "^2.1.2",
     "@nomicfoundation/hardhat-ethers": "^3.1.3",

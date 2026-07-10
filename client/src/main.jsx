@@ -35,7 +35,7 @@ const router = createBrowserRouter([
         }
       ])
 
-const client = new ApolloClient({
+export const client = new ApolloClient({
   link: new HttpLink({ uri: 'http://localhost:8000/subgraphs/name/blockchain-drive/subgraph' }),
   cache: new InMemoryCache(),
 });

@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
+import { gql } from '@apollo/client';
+import { client } from '../main.jsx';
 import axios from 'axios';
 import { API_Key, API_Secret, JWT } from '../utils/constants';
 
@@ -18,9 +20,9 @@ export default function Dashboard({ contract, account }) {
   useEffect(() => {
     let isMounted = true;
 
-    const fetchDashboardData = async () => {
+    const fetchDashboardData = async (isBackground = false) => {
       if (!account || !contract) return;
-      setLoading(true);
+      if (!isBackground) setLoading(true);
 
       try {
         // 1. Fetch File Count and Categories
@@ -51,79 +53,53 @@ export default function Dashboard({ contract, account }) {
           
           const pinataRes = await axios.get("https://api.pinata.cloud/data/userPinnedDataTotal", { headers });
           const bytes = parseInt(pinataRes.data);
-          if (!isNaN(bytes)) {
+          if (!isNaN(bytes) && bytes > 0) {
               setStorageUsedMB((bytes / (1024 * 1024)).toFixed(2));
+          } else if (count > 0) {
+              // Pinata might return 0 if the data hasn't been indexed by their API yet
+              setStorageUsedMB((count * 2.5).toFixed(2));
+          } else {
+              setStorageUsedMB(0);
           }
         } catch (e) {
           console.error("Pinata API error:", e);
           setStorageUsedMB((count * 2.5).toFixed(2)); 
         }
 
-        // 3. Fetch Events (Activity & Shares)
-        const startBlock = 11219910;
-        const addFilter = contract.filters.FileAdded(account);
-        const delFilter = contract.filters.FileDeleted(account);
-        const grantFilter = contract.filters.AccessGranted(account);
-        const revokeFilter = contract.filters.AccessRevoked(account);
-
-        const [addLogs, delLogs, grantLogs, revokeLogs] = await Promise.all([
-            contract.queryFilter(addFilter, startBlock),
-            contract.queryFilter(delFilter, startBlock),
-            contract.queryFilter(grantFilter, startBlock),
-            contract.queryFilter(revokeFilter, startBlock)
-        ]);
-
-        // Process Accesses
-        const accessMap = {}; // user => { grantedAt, revokedAt }
-        grantLogs.forEach(log => {
-           const user = log.args[1];
-           if (!accessMap[user] || log.blockNumber > accessMap[user].blockNumber) {
-               accessMap[user] = { revokedAt: null, blockNumber: log.blockNumber };
-           }
-        });
-        revokeLogs.forEach(log => {
-           const user = log.args[1];
-           if (accessMap[user] && log.blockNumber > accessMap[user].blockNumber) {
-               accessMap[user].revokedAt = log.blockNumber;
-               accessMap[user].blockNumber = log.blockNumber;
-           }
+        // 3. Fetch Events (Activity & Shares) via The Graph
+        const GET_DASHBOARD_DATA = gql`
+          query GetDashboardData($user: Bytes!) {
+            accesses(where: { owner: $user }) {
+              revokedAt
+            }
+            activityEvents(where: { user: $user }, orderBy: timestamp, orderDirection: desc, first: 15) {
+              id
+              type
+              text
+              timestamp
+              txHash
+            }
+          }
+        `;
+        
+        const { data: graphData } = await client.query({
+            query: GET_DASHBOARD_DATA,
+            variables: { user: account.toLowerCase() },
+            fetchPolicy: 'network-only'
         });
 
+        const accesses = graphData.accesses || [];
         let active = 0, expired = 0;
-        const sharedAddresses = Object.keys(accessMap);
-        sharedAddresses.forEach(user => {
-            if (accessMap[user].revokedAt === null) active++;
+        accesses.forEach(a => {
+            if (a.revokedAt === null) active++;
             else expired++;
         });
-        setSharedUsers(sharedAddresses.length);
+        
+        setSharedUsers(accesses.length);
         setActiveShares(active);
         setExpiredShares(expired);
 
-        // Process Activity Log
-        let events = [];
-        addLogs.forEach(log => events.push({ type: 'upload', text: 'Uploaded file to IPFS', txHash: log.transactionHash, blockNumber: log.blockNumber }));
-        delLogs.forEach(log => events.push({ type: 'delete', text: 'Deleted file from IPFS', txHash: log.transactionHash, blockNumber: log.blockNumber }));
-        grantLogs.forEach(log => events.push({ type: 'grant', text: `Granted access to ${log.args[1].substring(0, 6)}...`, txHash: log.transactionHash, blockNumber: log.blockNumber }));
-        revokeLogs.forEach(log => events.push({ type: 'revoke', text: `Revoked access from ${log.args[1].substring(0, 6)}...`, txHash: log.transactionHash, blockNumber: log.blockNumber }));
-
-        // Sort descending by blockNumber
-        events.sort((a, b) => b.blockNumber - a.blockNumber);
-        events = events.slice(0, 15); // keep top 15
-
-        // Fetch block timestamps for the top 15 events
-        const uniqueBlocks = [...new Set(events.map(e => e.blockNumber))];
-        const blockTimestamps = {};
-        await Promise.all(uniqueBlocks.map(async b => {
-            try {
-                const blk = await contract.provider.getBlock(b);
-                blockTimestamps[b] = blk.timestamp;
-            } catch(e) { blockTimestamps[b] = 0; }
-        }));
-
-        events.forEach(e => {
-            e.timestamp = blockTimestamps[e.blockNumber] || 0;
-            e.id = e.txHash;
-        });
+        let events = graphData.activityEvents || [];
 
         if (isMounted) {
             setActivityLog(events);
@@ -136,9 +112,37 @@ export default function Dashboard({ contract, account }) {
       }
     };
 
-    fetchDashboardData();
+    fetchDashboardData(false);
 
-    return () => { isMounted = false; };
+    let interval;
+    const handleBlockchainEvent = () => {
+        // Wait a few seconds for The Graph to index the new block before fetching
+        setTimeout(() => fetchDashboardData(true), 3000);
+    };
+
+    if (contract) {
+        // Poll gracefully every 12 seconds to catch Pinata/Graph updates
+        interval = setInterval(() => fetchDashboardData(true), 12000);
+        
+        // Listen to all relevant events for real-time updates
+        contract.on("FileAdded", handleBlockchainEvent);
+        contract.on("FileDeleted", handleBlockchainEvent);
+        contract.on("FileUpdated", handleBlockchainEvent);
+        contract.on("AccessGranted", handleBlockchainEvent);
+        contract.on("AccessRevoked", handleBlockchainEvent);
+    }
+
+    return () => { 
+        isMounted = false; 
+        if (interval) clearInterval(interval);
+        if (contract) {
+            contract.off("FileAdded", handleBlockchainEvent);
+            contract.off("FileDeleted", handleBlockchainEvent);
+            contract.off("FileUpdated", handleBlockchainEvent);
+            contract.off("AccessGranted", handleBlockchainEvent);
+            contract.off("AccessRevoked", handleBlockchainEvent);
+        }
+    };
   }, [account, contract]);
 
   if (!account) return null;

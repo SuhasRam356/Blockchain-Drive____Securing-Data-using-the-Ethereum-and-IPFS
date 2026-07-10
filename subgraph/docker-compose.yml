@@ -17,7 +17,7 @@ services:
       postgres_pass: let-me-in
       postgres_db: graph-node
       ipfs: 'ipfs:5001'
-      ethereum: 'sepolia:https://rpc.ankr.com/eth_sepolia'
+      ethereum: 'sepolia:https://sepolia.drpc.org'
       GRAPH_LOG: info
     extra_hosts:
       - "host.docker.internal:host-gateway"
