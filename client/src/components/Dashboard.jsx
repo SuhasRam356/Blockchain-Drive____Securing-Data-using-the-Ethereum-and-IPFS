@@ -3,7 +3,7 @@ import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
 import { gql } from '@apollo/client';
 import { client } from '../main.jsx';
 import axios from 'axios';
-import { API_Key, API_Secret, JWT } from '../utils/constants';
+import { LIGHTHOUSE_API_KEY } from '../utils/constants';
 
 export default function Dashboard({ contract, account }) {
   const [storageUsedMB, setStorageUsedMB] = useState(0);
@@ -47,22 +47,19 @@ export default function Dashboard({ contract, account }) {
 
         // 2. Fetch Storage Used
         try {
-          const headers = JWT 
-            ? { Authorization: `Bearer ${JWT}` }
-            : { pinata_api_key: API_Key, pinata_secret_api_key: API_Secret };
+          const headers = { Authorization: `Bearer ${LIGHTHOUSE_API_KEY}` };
           
-          const pinataRes = await axios.get("https://api.pinata.cloud/data/userPinnedDataTotal", { headers });
-          const bytes = parseInt(pinataRes.data);
-          if (!isNaN(bytes) && bytes > 0) {
-              setStorageUsedMB((bytes / (1024 * 1024)).toFixed(2));
+          const lhRes = await axios.get("https://api.lighthouse.storage/api/user/get_uploads", { headers });
+          if (lhRes.data && lhRes.data.length > 0) {
+              const totalBytes = lhRes.data.reduce((acc, curr) => acc + parseInt(curr.size || 0), 0);
+              setStorageUsedMB((totalBytes / (1024 * 1024)).toFixed(2));
           } else if (count > 0) {
-              // Pinata might return 0 if the data hasn't been indexed by their API yet
               setStorageUsedMB((count * 2.5).toFixed(2));
           } else {
               setStorageUsedMB(0);
           }
         } catch (e) {
-          console.error("Pinata API error:", e);
+          console.error("Lighthouse API error:", e);
           setStorageUsedMB((count * 2.5).toFixed(2)); 
         }
 

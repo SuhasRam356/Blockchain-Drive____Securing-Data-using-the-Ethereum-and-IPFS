@@ -344,7 +344,7 @@ const Navigation = () => {
                         <p className="text-sm text-slate-400">Choose your preferred IPFS pinning service.</p>
                       </div>
                       <select className="bg-slate-700 text-white border border-slate-600 rounded-lg p-2 focus:outline-none focus:border-cyan-400">
-                        <option>Pinata (Default)</option>
+                        <option>Lighthouse Filecoin (Default)</option>
                         <option>Infura</option>
                         <option>Web3.Storage</option>
                       </select>

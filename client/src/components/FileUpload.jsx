@@ -1,7 +1,7 @@
 import { useState } from "react";
 import axios from "axios";
 import "./FileUpload.css";
-import { API_Key, API_Secret, JWT } from "../utils/constants";
+import { LIGHTHOUSE_API_KEY } from "../utils/constants";
 import toast from "react-hot-toast";
 import * as CryptoJSImport from "crypto-js";
 const CryptoJS = CryptoJSImport.default || CryptoJSImport;
@@ -140,13 +140,11 @@ const FileUpload = ({ contract, account, provider, updateTarget = null, onUpload
 
             const formData = new FormData();
             formData.append("file", fileDataToUpload);
-            const headers = JWT 
-              ? { Authorization: `Bearer ${JWT}`, "Content-Type": "multipart/form-data" }
-              : { pinata_api_key: API_Key, pinata_secret_api_key: API_Secret, "Content-Type": "multipart/form-data" };
+            const headers = { Authorization: `Bearer ${LIGHTHOUSE_API_KEY}`, "Content-Type": "multipart/form-data" };
 
             const resFile = await axios({
               method: "post",
-              url: "https://api.pinata.cloud/pinning/pinFileToIPFS",
+              url: "https://node.lighthouse.storage/api/v0/add",
               data: formData,
               headers: headers,
               onUploadProgress: (progressEvent) => {
@@ -154,7 +152,7 @@ const FileUpload = ({ contract, account, provider, updateTarget = null, onUpload
                 setUploadProgress(percentCompleted);
               }
             });
-            uploadedHashes.push(`https://gateway.pinata.cloud/ipfs/${resFile.data.IpfsHash}`);
+            uploadedHashes.push(`https://gateway.lighthouse.storage/ipfs/${resFile.data.Hash}`);
             
             const currentTags = useStego ? ['#Stego'] : [];
             if (isZkpValid) currentTags.push('#ZKP-Verified');
@@ -221,13 +219,11 @@ const FileUpload = ({ contract, account, provider, updateTarget = null, onUpload
               const formData = new FormData();
               formData.append("file", fileDataToUpload);
 
-              const headers = JWT 
-                ? { Authorization: `Bearer ${JWT}`, "Content-Type": "multipart/form-data" }
-                : { pinata_api_key: API_Key, pinata_secret_api_key: API_Secret, "Content-Type": "multipart/form-data" };
+              const headers = { Authorization: `Bearer ${LIGHTHOUSE_API_KEY}`, "Content-Type": "multipart/form-data" };
 
               const resFile = await axios({
                 method: "post",
-                url: "https://api.pinata.cloud/pinning/pinFileToIPFS",
+                url: "https://node.lighthouse.storage/api/v0/add",
                 data: formData,
                 headers: headers,
                 onUploadProgress: (progressEvent) => {
@@ -235,7 +231,7 @@ const FileUpload = ({ contract, account, provider, updateTarget = null, onUpload
                   setUploadProgress(percentCompleted);
                 }
               });
-              const ImgHash = `https://gateway.pinata.cloud/ipfs/${resFile.data.IpfsHash}`;
+              const ImgHash = `https://gateway.lighthouse.storage/ipfs/${resFile.data.Hash}`;
               uploadedHashes.push(ImgHash);
             }
             
