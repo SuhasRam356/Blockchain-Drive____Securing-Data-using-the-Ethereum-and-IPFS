@@ -1,19 +1,17 @@
 /**
  * Steganography Utility
  * Uses Adaptive Edge-Based Steganography to hide data in complex texture regions.
+ * Optimized for high performance and minimal file sizes.
  */
 
 const END_DELIMITER = "###STEGO_END###";
 
 // Edge detection using the 7 MSBs to ensure determinism before and after LSB embedding
-function isHighFrequency(data, index, width, height) {
-    const x = Math.floor((index / 4) % width);
-    const y = Math.floor((index / 4) / width);
-    
+// Optimized to take x and y directly to avoid division overhead in tight loops
+function isHighFrequency(data, index, width, height, x, y) {
     // Skip 1-pixel borders
     if (x < 1 || x >= width - 1 || y < 1 || y >= height - 1) return false;
     
-    const current = data[index] & 0xFE;
     const left = data[index - 4] & 0xFE;
     const right = data[index + 4] & 0xFE;
     const up = data[index - width * 4] & 0xFE;
@@ -31,35 +29,45 @@ export const encodeStego = (coverImageFile, secretText) => {
         const fullSecretText = secretText + END_DELIMITER;
         const secretBytes = new TextEncoder().encode(fullSecretText);
         
-        const processImage = (img) => {
+        const processImage = (img, generatedSize = null) => {
             const canvas = document.createElement('canvas');
-            canvas.width = img.width;
-            canvas.height = img.height;
+            const width = generatedSize || img.width;
+            const height = generatedSize || img.height;
+            canvas.width = width;
+            canvas.height = height;
             const ctx = canvas.getContext('2d', { willReadFrequently: true });
-            ctx.drawImage(img, 0, 0);
             
-            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-            const data = imageData.data;
-            
-            // Count capacity based on high frequency pixels
-            let capacityBits = 0;
-            for (let i = 0; i < data.length; i += 4) {
-                if (isHighFrequency(data, i, canvas.width, canvas.height)) capacityBits++; // R
-                if (isHighFrequency(data, i + 1, canvas.width, canvas.height)) capacityBits++; // G
-                if (isHighFrequency(data, i + 2, canvas.width, canvas.height)) capacityBits++; // B
+            if (img) {
+                ctx.drawImage(img, 0, 0);
+            } else {
+                ctx.fillStyle = "black";
+                ctx.fillRect(0, 0, width, height);
             }
             
-            if (secretBytes.length * 8 > capacityBits) {
-                reject(new Error(`Cover image too smooth or small. Can hold ${Math.floor(capacityBits/8)} bytes, need ${secretBytes.length}.`));
-                return;
+            const imageData = ctx.getImageData(0, 0, width, height);
+            const data = imageData.data;
+            
+            if (!img) {
+                // Generate random noise
+                // This gives a very high probability of dx+dy > 20
+                for (let i = 0; i < data.length; i += 4) {
+                    data[i] = Math.floor(Math.random() * 256);     // R
+                    data[i+1] = Math.floor(Math.random() * 256);   // G
+                    data[i+2] = Math.floor(Math.random() * 256);   // B
+                    data[i+3] = 255; // Alpha
+                }
             }
             
             let byteIndex = 0;
             let bitIndex = 0;
+            let x = 0;
+            let y = 0;
             
-            for (let i = 0; i < data.length && byteIndex < secretBytes.length; i += 4) {
+            for (let i = 0; i < data.length; i += 4) {
+                if (byteIndex >= secretBytes.length) break;
+                
                 for (let j = 0; j < 3; j++) {
-                    if (byteIndex < secretBytes.length && isHighFrequency(data, i + j, canvas.width, canvas.height)) {
+                    if (byteIndex < secretBytes.length && isHighFrequency(data, i + j, width, height, x, y)) {
                         const bit = (secretBytes[byteIndex] >> (7 - bitIndex)) & 1;
                         data[i + j] = (data[i + j] & ~255) | (data[i + j] & 254) | bit; // Ensure we only modify LSB
                         
@@ -70,6 +78,17 @@ export const encodeStego = (coverImageFile, secretText) => {
                         }
                     }
                 }
+                
+                x++;
+                if (x >= width) {
+                    x = 0;
+                    y++;
+                }
+            }
+            
+            if (byteIndex < secretBytes.length) {
+                reject(new Error(`Cover image too smooth or small. Can't hold the required data.`));
+                return;
             }
             
             ctx.putImageData(imageData, 0, 0);
@@ -90,40 +109,15 @@ export const encodeStego = (coverImageFile, secretText) => {
             reader.onerror = () => reject(new Error("Failed to read cover image"));
             reader.readAsDataURL(coverImageFile);
         } else {
-            // Automatically select a random image
+            // Generate exact sizing mathematically
             const bitsNeeded = secretBytes.length * 8;
-            // Real images have lower high-frequency pixels than pure noise. Assume 0.5 bits per pixel on average
-            const pixelsNeeded = Math.ceil(bitsNeeded / 0.5);
-            const paddedPixels = Math.floor(pixelsNeeded * 1.5) + 4000; 
-            const size = Math.max(300, Math.ceil(Math.sqrt(paddedPixels)));
+            // With random noise, about 95% of pixels are high-frequency.
+            // We use a conservative 2 bits per pixel just to be absolutely safe.
+            const pixelsNeeded = Math.ceil(bitsNeeded / 2);
+            const paddedPixels = pixelsNeeded + 4000; // Account for border pixels skipped by isHighFrequency
+            const size = Math.max(10, Math.ceil(Math.sqrt(paddedPixels)));
             
-            const img = new Image();
-            img.crossOrigin = "Anonymous";
-            img.onload = () => {
-                const canvas = document.createElement('canvas');
-                canvas.width = size;
-                canvas.height = size;
-                const ctx = canvas.getContext('2d', { willReadFrequently: true });
-                ctx.drawImage(img, 0, 0);
-                
-                // Ensure capacity by adding a subtle noise overlay (film grain effect)
-                const imageData = ctx.getImageData(0, 0, size, size);
-                const data = imageData.data;
-                for (let i = 0; i < data.length; i += 4) {
-                    data[i] = Math.max(0, Math.min(255, data[i] + (Math.random() * 30 - 15)));     // R
-                    data[i+1] = Math.max(0, Math.min(255, data[i+1] + (Math.random() * 30 - 15))); // G
-                    data[i+2] = Math.max(0, Math.min(255, data[i+2] + (Math.random() * 30 - 15))); // B
-                }
-                ctx.putImageData(imageData, 0, 0);
-                
-                const noisyImg = new Image();
-                noisyImg.onload = () => processImage(noisyImg);
-                noisyImg.onerror = () => reject(new Error("Failed to load noisy image"));
-                noisyImg.src = canvas.toDataURL("image/png");
-            };
-            img.onerror = () => reject(new Error("Failed to fetch random image"));
-            const randSeed = Math.floor(Math.random() * 1000000);
-            img.src = `https://picsum.photos/${size}/${size}?random=${randSeed}`;
+            processImage(null, size);
         }
     });
 };
@@ -154,10 +148,12 @@ export const decodeStego = (stegoImageBlob) => {
             
             let currentByte = 0;
             let bitIndex = 0;
+            let x = 0;
+            let y = 0;
             
             for (let i = 0; i < data.length; i += 4) {
                 for (let j = 0; j < 3; j++) {
-                    if (isHighFrequency(data, i + j, canvas.width, canvas.height)) {
+                    if (isHighFrequency(data, i + j, canvas.width, canvas.height, x, y)) {
                         const bit = data[i + j] & 1;
                         currentByte = (currentByte << 1) | bit;
                         
@@ -189,6 +185,11 @@ export const decodeStego = (stegoImageBlob) => {
                             bitIndex = 0;
                         }
                     }
+                }
+                x++;
+                if (x >= canvas.width) {
+                    x = 0;
+                    y++;
                 }
             }
             reject(new Error("No hidden data found or image corrupted."));

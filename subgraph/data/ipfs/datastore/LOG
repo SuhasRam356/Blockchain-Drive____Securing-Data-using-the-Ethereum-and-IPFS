@@ -174,3 +174,24 @@
 06:31:47.956554 version@stat F·[3 1] S·61KiB[49KiB 11KiB] Sc·[0.75 0.00]
 06:31:48.057546 db@janitor F·6 G·0
 06:31:48.059377 db@open done T·210.970178ms
+=============== Jul 10, 2026 (UTC) ===============
+13:38:10.252378 log@legend F·NumFile S·FileSize N·Entry C·BadEntry B·BadBlock Ke·KeyError D·DroppedEntry L·Level Q·SeqNum T·TimeElapsed
+13:38:10.277436 version@stat F·[3 1] S·61KiB[49KiB 11KiB] Sc·[0.75 0.00]
+13:38:10.280581 db@open opening
+13:38:10.287615 journal@recovery F·1
+13:38:10.294397 journal@recovery recovering @41
+13:38:10.330949 memdb@flush created L0@43 N·151 S·18KiB "/F5..DXM,v761":"/pr..U64,d832"
+13:38:10.338092 version@stat F·[4 1] S·80KiB[68KiB 11KiB] Sc·[1.00 0.00]
+13:38:10.408674 db@janitor F·7 G·0
+13:38:10.410813 db@open done T·128.51297ms
+13:38:10.411115 table@compaction L0·4 -> L1·1 S·80KiB Q·907
+13:38:10.524721 table@build created L1@46 N·53 S·8KiB "/F5..5IA,v749":"/pr..53A,v812"
+13:38:10.526915 version@stat F·[0 1] S·8KiB[0B 8KiB] Sc·[0.00 0.00]
+13:38:10.537177 table@compaction committed F-4 S-71KiB Ke·0 D·565 T·122.196146ms
+13:38:10.544318 table@remove removed @43
+13:38:10.551338 table@remove removed @40
+13:38:10.560081 table@remove removed @37
+13:38:10.567313 table@remove removed @34
+13:38:10.575728 table@remove removed @33
+15:05:24.535987 db@close closing
+15:05:24.546605 db@close done T·11.079682ms

@@ -36,14 +36,18 @@ const router = createBrowserRouter([
       ])
 
 export const client = new ApolloClient({
-  link: new HttpLink({ uri: 'http://localhost:8000/subgraphs/name/blockchain-drive/subgraph' }),
+  link: new HttpLink({ uri: 'https://api.studio.thegraph.com/query/1756388/blockchain-drive/v0.0.1' }),
   cache: new InMemoryCache(),
 });
+
+import { PasswordProvider } from './context/PasswordContext';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <ApolloProvider client={client}>
-      <RouterProvider router={router} />
+      <PasswordProvider>
+        <RouterProvider router={router} />
+      </PasswordProvider>
     </ApolloProvider>
   </React.StrictMode>
 )

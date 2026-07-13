@@ -3,7 +3,10 @@ import React, { useEffect, useState } from 'react';
 import { contractAbi, contractAddress } from '../utils/constants';
 import toast from 'react-hot-toast';
 
+import { usePasswordModal } from '../context/PasswordContext';
+
 const Share = () => {
+    const { requestPassword } = usePasswordModal();
     const [account, setAccount] = useState('');
     const [contract, setContract] = useState('');
     const [provider, setProvider] = useState('');
@@ -81,6 +84,58 @@ const Share = () => {
                 }
             } else if (!ethers.utils.isAddress(finalAddress)) {
                 throw new Error(`Invalid Ethereum address: ${finalAddress}`);
+            }
+
+            // 1. Check if receiver has E2EE set up
+            const receiverPubKey = await contract.encryptionPublicKeys(finalAddress);
+            if (!receiverPubKey || receiverPubKey === "") {
+                throw new Error(`User ${finalAddress.substring(0,6)}... has not set up E2EE yet. They must log in first.`);
+            }
+
+            // 2. Fetch sender's files to re-encrypt keys
+            const fileCount = await contract.getFileCount(account);
+            const countNum = fileCount.toNumber();
+            
+            if (countNum > 0) {
+                // Fetch all files. Wait, if the user has many files this could be large, but for now we fetch all.
+                const allFiles = [];
+                for(let i=0; i<countNum; i++) {
+                    // Since displayPage is 1-indexed for offset? Wait, let's use display if available.
+                    const filesBatch = await contract.displayPage(account, i, 1);
+                    if (filesBatch.length > 0) allFiles.push(filesBatch[0]);
+                }
+
+                if (allFiles.length > 0) {
+                    const password = await requestPassword("Share Files", "Enter your Master Password to securely encrypt your files for the receiver:");
+                    if (!password) {
+                        throw new Error("Master Password required to share encrypted files.");
+                    }
+
+                    const { getDeterministicKey, decryptAESKey, encryptAESKey } = await import('../utils/encryption');
+                    const secretKey = await getDeterministicKey(password, account);
+
+                    const urls = [];
+                    const encryptedKeysForReceiver = [];
+
+                    for (const file of allFiles) {
+                        const encryptedAesKeyHex = await contract.encryptedAESKeys(file.url);
+                        if (encryptedAesKeyHex && encryptedAesKeyHex !== "MANUAL" && encryptedAesKeyHex !== "") {
+                            // Decrypt AES key with Alice's secret key
+                            const aesKey = await decryptAESKey(encryptedAesKeyHex, secretKey);
+                            // Encrypt AES key with Bob's public key
+                            const newEncryptedKey = await encryptAESKey(aesKey, receiverPubKey);
+                            
+                            urls.push(file.url);
+                            encryptedKeysForReceiver.push(newEncryptedKey);
+                        }
+                    }
+
+                    if (urls.length > 0) {
+                        toast("Sharing encrypted keys on blockchain...");
+                        const shareKeysTx = await contract.shareFileKeysForUser(finalAddress, urls, encryptedKeysForReceiver);
+                        await shareKeysTx.wait();
+                    }
+                }
             }
 
             const durationInMins = parseInt(duration);

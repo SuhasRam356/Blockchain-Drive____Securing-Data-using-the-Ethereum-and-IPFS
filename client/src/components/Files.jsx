@@ -6,8 +6,10 @@ const CryptoJS = CryptoJSImport.default || CryptoJSImport;
 import { ethers } from 'ethers';
 import FileUpload from './FileUpload';
 import { decodeStego } from '../utils/steganography';
+import { usePasswordModal } from '../context/PasswordContext';
 
 export default function Files({ contract, account, shared, title }) {
+  const { requestPassword } = usePasswordModal();
   const [allfiles, setAllFiles] = useState([])
   const [otherAddress, setOtherAddress] = useState('')
   const [selectedFilter, setSelectedFilter] = useState('All');
@@ -146,7 +148,12 @@ export default function Files({ contract, account, shared, title }) {
              return "File opened";
         }
         
-        const encryptedAesKeyHex = await contract.encryptedAESKeys(url);
+        let encryptedAesKeyHex = "";
+        if (shared === '1' && contract.sharedEncryptedAESKeys) {
+            encryptedAesKeyHex = await contract.sharedEncryptedAESKeys(url, account);
+        } else {
+            encryptedAesKeyHex = await contract.encryptedAESKeys(url);
+        }
         if (encryptedAesKeyHex && encryptedAesKeyHex !== "MANUAL" && encryptedAesKeyHex !== "") {
              // Decrypt AES key using deterministic signature key
              toast("Deriving deterministic key & decrypting...", { icon: '🔐' });
@@ -154,7 +161,12 @@ export default function Files({ contract, account, shared, title }) {
              const signer = provider.getSigner();
              const { getDeterministicKey, decryptAESKey } = await import('../utils/encryption');
              
-             const secretKey = await getDeterministicKey(signer);
+             const password = await requestPassword("Decrypt File", "Enter your Drive Master Password to decrypt:");
+             if (!password) {
+                 toast.error("Password required to view file.");
+                 return;
+             }
+             const secretKey = await getDeterministicKey(password, account);
              aesKeyToUse = await decryptAESKey(encryptedAesKeyHex, secretKey);
         } else if (!encryptedAesKeyHex || encryptedAesKeyHex === "") {
              // Unencrypted file

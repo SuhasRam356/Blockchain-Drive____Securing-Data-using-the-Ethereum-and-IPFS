@@ -466,6 +466,29 @@ export class UploadUpgradeableV6 extends ethereum.SmartContract {
     return ethereum.CallResult.fromValue(value[0].toString());
   }
 
+  encryptionKeyNonces(param0: Address): BigInt {
+    let result = super.call(
+      "encryptionKeyNonces",
+      "encryptionKeyNonces(address):(uint256)",
+      [ethereum.Value.fromAddress(param0)],
+    );
+
+    return result[0].toBigInt();
+  }
+
+  try_encryptionKeyNonces(param0: Address): ethereum.CallResult<BigInt> {
+    let result = super.tryCall(
+      "encryptionKeyNonces",
+      "encryptionKeyNonces(address):(uint256)",
+      [ethereum.Value.fromAddress(param0)],
+    );
+    if (result.reverted) {
+      return new ethereum.CallResult();
+    }
+    let value = result.value;
+    return ethereum.CallResult.fromValue(value[0].toBigInt());
+  }
+
   encryptionPublicKeys(param0: Address): string {
     let result = super.call(
       "encryptionPublicKeys",

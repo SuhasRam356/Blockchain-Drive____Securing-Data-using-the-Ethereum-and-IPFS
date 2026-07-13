@@ -93,15 +93,18 @@ describe("UploadUpgradeableV6", function () {
   describe("Publish Public Key Overwrite (E2EE V6 Signature Verification)", function () {
     it("Should successfully verify signature and set public key", async function () {
       const pubKey = "KeyA";
-      const message = `Confirm E2EE Public Key: ${pubKey}`;
+      const nonceA = await upload.encryptionKeyNonces(owner.address);
+      const message = `Confirm E2EE Public Key: ${pubKey} Nonce: ${nonceA}`;
       const signature = await owner.signMessage(message);
 
       await upload.connect(owner).setEncryptionPublicKey(pubKey, signature);
       expect(await upload.encryptionPublicKeys(owner.address)).to.equal(pubKey);
+      expect(await upload.encryptionKeyNonces(owner.address)).to.equal(nonceA + 1n);
 
       // Overwrite
       const pubKeyB = "KeyB";
-      const messageB = `Confirm E2EE Public Key: ${pubKeyB}`;
+      const nonceB = await upload.encryptionKeyNonces(owner.address);
+      const messageB = `Confirm E2EE Public Key: ${pubKeyB} Nonce: ${nonceB}`;
       const signatureB = await owner.signMessage(messageB);
 
       await upload.connect(owner).setEncryptionPublicKey(pubKeyB, signatureB);
@@ -110,7 +113,8 @@ describe("UploadUpgradeableV6", function () {
 
     it("Should revert if signature is invalid or belongs to someone else", async function () {
       const pubKey = "KeyC";
-      const message = `Confirm E2EE Public Key: ${pubKey}`;
+      const nonceC = await upload.encryptionKeyNonces(owner.address);
+      const message = `Confirm E2EE Public Key: ${pubKey} Nonce: ${nonceC}`;
       // Malicious user1 signs the message for owner's transaction
       const invalidSignature = await user1.signMessage(message);
 

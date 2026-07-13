@@ -182,6 +182,29 @@ const FileUpload = ({ contract, account, provider, updateTarget = null, onUpload
                 if (contract.addWithE2EE) {
                     const tx = await contract.addWithE2EE(uploadedHashes[0], combinedCategory, singleFileHashHex, singleFileSignature, encryptedAesKeyHex);
                     await tx.wait();
+
+                    // V7: Share AES key with users in the access list
+                    const accessList = await contract.shareAccess();
+                    const activeUsers = accessList.filter(a => a.access).map(a => a.user);
+                    if (activeUsers.length > 0) {
+                        toast("Sharing new file's key with authorized users...");
+                        const { encryptAESKey } = await import('../utils/encryption');
+                        const sharedUsers = [];
+                        const sharedKeys = [];
+                        for (const u of activeUsers) {
+                            const pKey = await contract.encryptionPublicKeys(u);
+                            if (pKey && pKey !== "") {
+                                const newEncryptedKey = await encryptAESKey(aesKey, pKey);
+                                sharedUsers.push(u);
+                                sharedKeys.push(newEncryptedKey);
+                            }
+                        }
+                        if (sharedUsers.length > 0) {
+                            const shareTx = await contract.shareFileKeysForMultipleUsers(uploadedHashes[0], sharedUsers, sharedKeys);
+                            await shareTx.wait();
+                        }
+                    }
+
                 } else {
                     const tx = await contract.addWithSignature(uploadedHashes[0], combinedCategory, singleFileHashHex, singleFileSignature);
                     await tx.wait();

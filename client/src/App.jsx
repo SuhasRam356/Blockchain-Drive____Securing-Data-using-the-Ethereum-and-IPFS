@@ -14,12 +14,13 @@ import SharedLinkView from './components/SharedLinkView';
 import Faucet from './components/Faucet';
 import { Toaster } from 'react-hot-toast';
  
+import { usePasswordModal } from './context/PasswordContext';
 
 function App() {
   const [account , setAccount] = useState('');
   const [contract , setContract] = useState('');
   const [provider , setProvider] = useState(''); 
-  // const [modalOpen, setModalOpen] = useState(false);
+  const { requestPassword } = usePasswordModal();
 
   useEffect(()=>{
     if(window.ethereum){
@@ -57,11 +58,16 @@ function App() {
             
             if (!currentPubKey || currentPubKey === "" || !isMigrated) {
                 const { getDeterministicKey, derivePublicKey } = await import('./utils/encryption');
-                const secretKey = await getDeterministicKey(signer);
+                const password = await requestPassword("E2EE Setup", "Enter a Master Password for End-to-End Encryption (Keep this safe!):");
+                if (!password) {
+                    throw new Error("Master Password is required for E2EE setup.");
+                }
+                const secretKey = await getDeterministicKey(password, address);
                 const pubKey = derivePublicKey(secretKey);
                 
                 if (currentPubKey !== pubKey) {
-                    const message = "Confirm E2EE Public Key: " + pubKey;
+                    const nonce = await contract.encryptionKeyNonces(address);
+                    const message = "Confirm E2EE Public Key: " + pubKey + " Nonce: " + nonce.toString();
                     const signature = await signer.signMessage(message);
                     const tx = await contract.setEncryptionPublicKey(pubKey, signature);
                     await tx.wait();

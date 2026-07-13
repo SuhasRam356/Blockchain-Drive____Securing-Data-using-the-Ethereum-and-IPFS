@@ -6,6 +6,7 @@ import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
+import "@openzeppelin/contracts/utils/Strings.sol";
 
 contract UploadUpgradeableV6 is Initializable, OwnableUpgradeable, UUPSUpgradeable {
     struct FileInfo {
@@ -61,6 +62,9 @@ contract UploadUpgradeableV6 is Initializable, OwnableUpgradeable, UUPSUpgradeab
     mapping(string => string) public originalUrls;
     // Mapping of originalUrl (FileID) to its historical versions
     mapping(string => Version[]) public fileVersions;
+
+    // --- NONCE STORAGE FOR REPLAY PROTECTION ---
+    mapping(address => uint256) public encryptionKeyNonces;
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -135,11 +139,13 @@ contract UploadUpgradeableV6 is Initializable, OwnableUpgradeable, UUPSUpgradeab
 
     // --- V4 FUNCTIONS ---
     function setEncryptionPublicKey(string calldata key, bytes calldata signature) external {
-        string memory message = string.concat("Confirm E2EE Public Key: ", key);
+        uint256 currentNonce = encryptionKeyNonces[msg.sender];
+        string memory message = string.concat("Confirm E2EE Public Key: ", key, " Nonce: ", Strings.toString(currentNonce));
         bytes32 messageHash = MessageHashUtils.toEthSignedMessageHash(bytes(message));
         address signer = ECDSA.recover(messageHash, signature);
         require(signer == msg.sender, "Invalid signature: signer does not match sender");
         
+        encryptionKeyNonces[msg.sender]++;
         encryptionPublicKeys[msg.sender] = key;
         emit PublicKeyPublished(msg.sender, key);
     }
