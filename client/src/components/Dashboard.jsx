@@ -3,7 +3,7 @@ import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
 import { gql } from '@apollo/client';
 import { client } from '../main.jsx';
 import axios from 'axios';
-import { LIGHTHOUSE_API_KEY } from '../utils/constants';
+
 
 export default function Dashboard({ contract, account }) {
   const [storageUsedMB, setStorageUsedMB] = useState(0);
@@ -47,19 +47,13 @@ export default function Dashboard({ contract, account }) {
 
         // 2. Fetch Storage Used
         try {
-          const headers = { Authorization: `Bearer ${LIGHTHOUSE_API_KEY}` };
-          
-          const lhRes = await axios.get("https://api.lighthouse.storage/api/user/get_uploads", { headers });
-          if (lhRes.data && lhRes.data.length > 0) {
-              const totalBytes = lhRes.data.reduce((acc, curr) => acc + parseInt(curr.size || 0), 0);
-              setStorageUsedMB((totalBytes / (1024 * 1024)).toFixed(2));
-          } else if (count > 0) {
+          if (count > 0) {
               setStorageUsedMB((count * 2.5).toFixed(2));
           } else {
               setStorageUsedMB(0);
           }
         } catch (e) {
-          console.error("Lighthouse API error:", e);
+          console.error("Storage calculation error:", e);
           setStorageUsedMB((count * 2.5).toFixed(2)); 
         }
 
