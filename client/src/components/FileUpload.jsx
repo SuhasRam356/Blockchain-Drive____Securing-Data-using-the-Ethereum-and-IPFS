@@ -140,11 +140,14 @@ const FileUpload = ({ contract, account, provider, updateTarget = null, onUpload
 
             const formData = new FormData();
             formData.append("file", fileDataToUpload);
-            const headers = { Authorization: `Bearer ${LIGHTHOUSE_API_KEY}`, "Content-Type": "multipart/form-data" };
+            const headers = { 
+              Authorization: `Bearer ${import.meta.env.VITE_PINATA_JWT}`, 
+              "Content-Type": "multipart/form-data" 
+            };
 
             const resFile = await axios({
               method: "post",
-              url: "https://node.lighthouse.storage/api/v0/add",
+              url: "https://api.pinata.cloud/pinning/pinFileToIPFS",
               data: formData,
               headers: headers,
               onUploadProgress: (progressEvent) => {
@@ -152,7 +155,7 @@ const FileUpload = ({ contract, account, provider, updateTarget = null, onUpload
                 setUploadProgress(percentCompleted);
               }
             });
-            uploadedHashes.push(`https://gateway.lighthouse.storage/ipfs/${resFile.data.Hash}`);
+            uploadedHashes.push(`https://gateway.pinata.cloud/ipfs/${resFile.data.IpfsHash}`);
             
             const currentTags = useStego ? ['#Stego'] : [];
             if (isZkpValid) currentTags.push('#ZKP-Verified');
@@ -219,11 +222,14 @@ const FileUpload = ({ contract, account, provider, updateTarget = null, onUpload
               const formData = new FormData();
               formData.append("file", fileDataToUpload);
 
-              const headers = { Authorization: `Bearer ${LIGHTHOUSE_API_KEY}`, "Content-Type": "multipart/form-data" };
+              const headers = { 
+                Authorization: `Bearer ${import.meta.env.VITE_PINATA_JWT}`, 
+                "Content-Type": "multipart/form-data" 
+              };
 
               const resFile = await axios({
                 method: "post",
-                url: "https://node.lighthouse.storage/api/v0/add",
+                url: "https://api.pinata.cloud/pinning/pinFileToIPFS",
                 data: formData,
                 headers: headers,
                 onUploadProgress: (progressEvent) => {
@@ -231,7 +237,7 @@ const FileUpload = ({ contract, account, provider, updateTarget = null, onUpload
                   setUploadProgress(percentCompleted);
                 }
               });
-              const ImgHash = `https://gateway.lighthouse.storage/ipfs/${resFile.data.Hash}`;
+              const ImgHash = `https://gateway.pinata.cloud/ipfs/${resFile.data.IpfsHash}`;
               uploadedHashes.push(ImgHash);
             }
             
