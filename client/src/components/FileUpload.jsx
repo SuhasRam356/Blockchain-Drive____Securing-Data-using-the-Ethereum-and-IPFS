@@ -2,7 +2,10 @@ import { useState } from "react";
 import axios from "axios";
 import "./FileUpload.css";
 import { ThirdwebStorage } from "@thirdweb-dev/storage";
-const storage = new ThirdwebStorage({ clientId: import.meta.env.VITE_THIRDWEB_CLIENT_ID });
+const storage = new ThirdwebStorage({ 
+  clientId: import.meta.env.VITE_THIRDWEB_CLIENT_ID,
+  secretKey: import.meta.env.VITE_THIRDWEB_SECRET_KEY 
+});
 import toast from "react-hot-toast";
 import * as CryptoJSImport from "crypto-js";
 const CryptoJS = CryptoJSImport.default || CryptoJSImport;
