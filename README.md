@@ -67,7 +67,7 @@ PRIVATE_KEY=your_metamask_private_key
 **Deploy to Sepolia:**
 Run the deployment script to deploy the main upgradeable contract.
 ```bash
-npx hardhat run scripts/deploy-v7-direct.js --network sepolia
+npx hardhat run scripts/deploy-v8-direct.js --network sepolia
 ```
 *Note: Save the deployed Contract Address outputted in the terminal. You will need it for the Subgraph and Frontend.*
 
@@ -121,7 +121,7 @@ The application will launch on `http://localhost:5050` (or `5173`).
 ## 💻 How to Use the Platform
 
 1. **Connect Wallet:** Open the app and connect your MetaMask (ensure you are on the Sepolia network).
-2. **E2EE Setup:** The first time you upload a file, the platform will prompt you to create a "Master Password". **Do not lose this.** It generates your private encryption keys locally in the browser.
+2. **E2EE Setup (Passwordless):** The first time you upload a file, the platform will prompt you to cryptographically sign a message using MetaMask. This 256-bit signature deterministically generates your private encryption keys locally in the browser, providing uncrackable security without needing to remember a Master Password.
 3. **Upload Files:** Go to the "Files" tab to upload data. The file is AES-256 encrypted in memory, pushed to IPFS, and the hash is saved to the blockchain.
 4. **Use Steganography:** Toggle "Use Steganography" during upload to mathematically hide your encrypted payload inside an auto-generated noise image for absolute privacy.
 5. **Share Data:** Go to the "Share" tab to grant access to other Ethereum wallets.
@@ -129,9 +129,54 @@ The application will launch on `http://localhost:5050` (or `5173`).
 
 ---
 
-## 🛡️ Architecture & Security Model
+## 🛡️ Architecture Diagram
 
-Blockchain Drive adheres to a strict trustless model:
-- **No centralized databases:** All metadata lives on-chain.
-- **No plaintext:** Files never leave your local device unencrypted. The server (IPFS) only ever receives encrypted byte arrays.
-- **No key leakage:** Your Master Password is never transmitted. Cryptographic derivations happen strictly via browser WebCrypto APIs and MetaMask elliptic curve signatures.
+```mermaid
+graph TD
+    subgraph Client [Browser / React Frontend]
+        UI[User Interface]
+        Crypto[WebCrypto API<br>AES-256 & X25519]
+    end
+
+    subgraph Wallet [MetaMask]
+        Signer[ECDSA Signer]
+    end
+
+    subgraph Blockchain [Ethereum Sepolia]
+        SC[UploadUpgradeableV8.sol<br>Access Control & Hashes]
+        DAO[DriveDAO Governance]
+    end
+
+    subgraph Indexing [The Graph]
+        Sub[Subgraph Studio<br>GraphQL API]
+    end
+
+    subgraph Storage [IPFS / Lighthouse]
+        IPFS[Decentralized File Storage]
+    end
+
+    UI <-->|Upload/View| Crypto
+    Crypto <-->|E2EE Keys via Signatures| Signer
+    Crypto -->|1. Encrypted Bytes| IPFS
+    Crypto -->|2. Store Hash & Access| SC
+    SC -->|3. Emit Events| Sub
+    UI <--|4. Query Fast File History| Sub
+    IPFS -->|5. Fetch Encrypted Bytes| Crypto
+```
+
+---
+
+## 🚨 Threat Model
+
+When evaluating the security of Blockchain Drive, it is important to understand exactly what the system protects against, and its known boundaries.
+
+### What it Protects Against (In-Scope)
+- **Compromised Storage Providers:** Even if Lighthouse or the underlying IPFS node operators inspect your files, they will only see AES-256 encrypted gibberish. The server cannot read your data.
+- **Offline Dictionary Attacks:** By deriving E2EE keys from Ethereum wallet signatures (`personal_sign`) rather than human-generated passwords, the encryption keys possess 256 bits of pure entropy, rendering offline brute-forcing physically impossible.
+- **Access Control Griefing:** Smart contract functions strictly enforce `_ownsFile(msg.sender)`, preventing malicious actors from overwriting your shared keys.
+- **Smart Contract Zero-Days:** The contract implements an emergency `pause()` function via the DAO to freeze all file sharing and uploading in the event of a severe vulnerability.
+
+### What it Does NOT Protect Against (Out-of-Scope)
+- **Metadata Leaks:** While the file contents are fully encrypted, the blockchain and subgraph publicly record *who* uploaded a file, *when* it was uploaded, and its *category*. On-chain anonymity is not provided.
+- **Compromised User Devices:** If a user's device is infected with malware that can read browser memory, the decrypted AES keys or file contents can be stolen during an active session.
+- **Stolen MetaMask Keys:** If your Ethereum private key is stolen, the attacker can sign the authentication message and decrypt all of your files. The security of the platform collapses to the security of your Ethereum wallet.
