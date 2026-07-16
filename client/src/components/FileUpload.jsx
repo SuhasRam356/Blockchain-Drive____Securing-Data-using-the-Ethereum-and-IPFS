@@ -1,7 +1,8 @@
 import { useState } from "react";
 import axios from "axios";
 import "./FileUpload.css";
-import { LIGHTHOUSE_API_KEY } from "../utils/constants";
+import { ThirdwebStorage } from "@thirdweb-dev/storage";
+const storage = new ThirdwebStorage({ clientId: import.meta.env.VITE_THIRDWEB_CLIENT_ID });
 import toast from "react-hot-toast";
 import * as CryptoJSImport from "crypto-js";
 const CryptoJS = CryptoJSImport.default || CryptoJSImport;
@@ -138,24 +139,10 @@ const FileUpload = ({ contract, account, provider, updateTarget = null, onUpload
 
             finalFilesData.push(fileDataToUpload);
 
-            const formData = new FormData();
-            formData.append("file", fileDataToUpload);
-            const headers = { 
-              Authorization: `Bearer ${import.meta.env.VITE_PINATA_JWT}`, 
-              "Content-Type": "multipart/form-data" 
-            };
-
-            const resFile = await axios({
-              method: "post",
-              url: "https://api.pinata.cloud/pinning/pinFileToIPFS",
-              data: formData,
-              headers: headers,
-              onUploadProgress: (progressEvent) => {
-                const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
-                setUploadProgress(percentCompleted);
-              }
-            });
-            uploadedHashes.push(`https://gateway.pinata.cloud/ipfs/${resFile.data.IpfsHash}`);
+            toast("Uploading to decentralized storage...", { icon: '☁️' });
+            const uri = await storage.upload(fileDataToUpload);
+            const cid = uri.replace("ipfs://", "");
+            uploadedHashes.push(`https://cf-ipfs.com/ipfs/${cid}`);
             
             const currentTags = useStego ? ['#Stego'] : [];
             if (isZkpValid) currentTags.push('#ZKP-Verified');
@@ -219,26 +206,9 @@ const FileUpload = ({ contract, account, provider, updateTarget = null, onUpload
 
               finalFilesData.push(fileDataToUpload);
 
-              const formData = new FormData();
-              formData.append("file", fileDataToUpload);
-
-              const headers = { 
-                Authorization: `Bearer ${import.meta.env.VITE_PINATA_JWT}`, 
-                "Content-Type": "multipart/form-data" 
-              };
-
-              const resFile = await axios({
-                method: "post",
-                url: "https://api.pinata.cloud/pinning/pinFileToIPFS",
-                data: formData,
-                headers: headers,
-                onUploadProgress: (progressEvent) => {
-                  const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
-                  setUploadProgress(percentCompleted);
-                }
-              });
-              const ImgHash = `https://gateway.pinata.cloud/ipfs/${resFile.data.IpfsHash}`;
-              uploadedHashes.push(ImgHash);
+              const uri = await storage.upload(fileDataToUpload);
+              const cid = uri.replace("ipfs://", "");
+              uploadedHashes.push(`https://cf-ipfs.com/ipfs/${cid}`);
             }
             
             const combinedCategory = category;

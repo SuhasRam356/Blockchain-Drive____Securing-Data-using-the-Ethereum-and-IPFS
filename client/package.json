@@ -14,6 +14,7 @@
     "@headlessui/react": "^1.7.17",
     "@heroicons/react": "^2.0.18",
     "@metamask/eth-sig-util": "^8.2.0",
+    "@thirdweb-dev/storage": "^2.0.15",
     "axios": "^1.2.2",
     "buffer": "^6.0.3",
     "crypto-js": "^4.2.0",
