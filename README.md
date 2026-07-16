@@ -131,39 +131,7 @@ The application will launch on `http://localhost:5050` (or `5173`).
 
 ## 🛡️ Architecture Diagram
 
-```mermaid
-graph TD
-    subgraph Client [Browser / React Frontend]
-        UI[User Interface]
-        Crypto[WebCrypto API<br>AES-256 & X25519]
-    end
-
-    subgraph Wallet [MetaMask]
-        Signer[ECDSA Signer]
-    end
-
-    subgraph Blockchain [Ethereum Sepolia]
-        SC[UploadUpgradeableV8.sol<br>Access Control & Hashes]
-        DAO[DriveDAO Governance]
-    end
-
-    subgraph Indexing [The Graph]
-        Sub[Subgraph Studio<br>GraphQL API]
-    end
-
-    subgraph Storage [IPFS / Lighthouse]
-        IPFS[Decentralized File Storage]
-    end
-
-    UI -->|Upload/View| Crypto
-    Crypto -->|E2EE Keys via Signatures| Signer
-    Signer -->|Returns Key| Crypto
-    Crypto -->|1. Encrypted Bytes| IPFS
-    Crypto -->|2. Store Hash & Access| SC
-    SC -->|3. Emit Events| Sub
-    Sub -->|4. Query Fast File History| UI
-    IPFS -->|5. Fetch Encrypted Bytes| Crypto
-```
+![Architecture Diagram](./docs/architecture.png)
 
 ---
 
