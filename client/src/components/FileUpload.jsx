@@ -1,11 +1,7 @@
 import { useState } from "react";
 import axios from "axios";
 import "./FileUpload.css";
-import { ThirdwebStorage } from "@thirdweb-dev/storage";
-const storage = new ThirdwebStorage({ 
-  clientId: import.meta.env.VITE_THIRDWEB_CLIENT_ID,
-  secretKey: import.meta.env.VITE_THIRDWEB_SECRET_KEY 
-});
+import { uploadToFilebase } from '../utils/filebase';
 import toast from "react-hot-toast";
 import * as CryptoJSImport from "crypto-js";
 const CryptoJS = CryptoJSImport.default || CryptoJSImport;
@@ -143,19 +139,14 @@ const FileUpload = ({ contract, account, provider, updateTarget = null, onUpload
             finalFilesData.push(fileDataToUpload);
 
             toast("Uploading to decentralized storage...", { icon: '☁️' });
-            const uri = await storage.upload(fileDataToUpload, {
-              uploadWithoutDirectory: true,
-              onProgress: (event) => {
+            const uri = await uploadToFilebase(fileDataToUpload, (progressEvent) => {
                 let percentCompleted = 0;
-                if (event.total) {
-                  percentCompleted = Math.round((event.progress / event.total) * 100);
+                if (progressEvent.total) {
+                  percentCompleted = Math.round((progressEvent.loaded / progressEvent.total) * 100);
                 } else {
-                  // Fallback if total is undefined
-                  percentCompleted = Math.round(event.progress || 0);
-                  if (percentCompleted > 100) percentCompleted = 99; 
+                  percentCompleted = 99; 
                 }
                 setUploadProgress(percentCompleted);
-              }
             });
             const cid = uri.replace("ipfs://", "");
             uploadedHashes.push(`https://cf-ipfs.com/ipfs/${cid}`);
@@ -222,19 +213,14 @@ const FileUpload = ({ contract, account, provider, updateTarget = null, onUpload
 
               finalFilesData.push(fileDataToUpload);
 
-              const uri = await storage.upload(fileDataToUpload, {
-                uploadWithoutDirectory: true,
-                onProgress: (event) => {
+              const uri = await uploadToFilebase(fileDataToUpload, (progressEvent) => {
                   let percentCompleted = 0;
-                  if (event.total) {
-                    percentCompleted = Math.round((event.progress / event.total) * 100);
+                  if (progressEvent.total) {
+                    percentCompleted = Math.round((progressEvent.loaded / progressEvent.total) * 100);
                   } else {
-                    // Fallback if total is undefined
-                    percentCompleted = Math.round(event.progress || 0);
-                    if (percentCompleted > 100) percentCompleted = 99; 
+                    percentCompleted = 99; 
                   }
                   setUploadProgress(percentCompleted);
-                }
               });
               const cid = uri.replace("ipfs://", "");
               uploadedHashes.push(`https://cf-ipfs.com/ipfs/${cid}`);
