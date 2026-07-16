@@ -6,49 +6,34 @@ const sigUtil = sigUtilImport.default || sigUtilImport;
 let cachedSecretKey = null;
 
 /**
- * Derives a 32-byte secret key using PBKDF2 from a master password.
- * @param {string} password - User provided master password
- * @param {string} address - User's wallet address (used for domain separation / salt)
+ * Derives a 32-byte secret key cryptographically using an Ethereum signature.
+ * @param {string} address - User's wallet address 
+ * @param {ethers.Signer} signer - Ethers signer object to request the signature
  * @returns {Promise<string>} The 32-byte secret key as a hex string (without '0x')
  */
-export const getDeterministicKey = async (password, address) => {
+export const getDeterministicKey = async (address, signer) => {
     if (cachedSecretKey) return cachedSecretKey;
     
-    if (!password) {
-        throw new Error("Master password is required for E2EE.");
+    if (!signer) {
+        throw new Error("Signer is required to authenticate E2EE.");
     }
     
     try {
+        const message = "Sign this message to authenticate your E2EE session for Blockchain Drive.\n\nThis cryptographically derives a deterministic key used to decrypt your files without needing a Master Password.";
+        const signature = await signer.signMessage(message);
+        
         const encoder = new TextEncoder();
-        const keyMaterial = await window.crypto.subtle.importKey(
-            "raw",
-            encoder.encode(password),
-            { name: "PBKDF2" },
-            false,
-            ["deriveBits", "deriveKey"]
-        );
+        const data = encoder.encode(signature);
+        const hashBuffer = await window.crypto.subtle.digest('SHA-256', data);
         
-        const salt = encoder.encode("BlockchainDrive_E2EE_" + address.toLowerCase());
-        
-        const derivedBits = await window.crypto.subtle.deriveBits(
-            {
-                name: "PBKDF2",
-                salt: salt,
-                iterations: 100000,
-                hash: "SHA-256"
-            },
-            keyMaterial,
-            256
-        );
-        
-        const hashArray = Array.from(new Uint8Array(derivedBits));
+        const hashArray = Array.from(new Uint8Array(hashBuffer));
         const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
         
         cachedSecretKey = hashHex;
         return cachedSecretKey;
     } catch (error) {
         console.error("Failed to generate deterministic key", error);
-        throw new Error("Failed to derive E2EE key from password.");
+        throw new Error("Failed to derive E2EE key from signature.");
     }
 };
 

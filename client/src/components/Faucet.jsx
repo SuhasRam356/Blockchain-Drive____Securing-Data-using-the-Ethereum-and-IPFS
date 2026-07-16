@@ -20,8 +20,8 @@ const Faucet = ({ provider, account }) => {
             const uBal = await tokenContract.balanceOf(account);
             const nextClaim = await faucetContract.nextClaimTime(account);
             
-            setFaucetBalance(ethers.formatEther(fBal));
-            setUserBalance(ethers.formatEther(uBal));
+            setFaucetBalance(ethers.utils.formatEther(fBal));
+            setUserBalance(ethers.utils.formatEther(uBal));
             setNextClaimTime(Number(nextClaim));
             
             updateCooldown(Number(nextClaim));

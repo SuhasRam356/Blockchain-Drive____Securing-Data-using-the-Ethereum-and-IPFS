@@ -30,7 +30,7 @@ function createActivityEvent(id: string, user: string, type: string, text: strin
 }
 
 export function handleFileAdded(event: FileAddedEvent): void {
-  let fileId = event.params.url
+  let fileId = event.params.user.toHexString() + "-" + event.params.url
   let file = new File(fileId)
   file.url = event.params.url
   file.category = event.params.category
@@ -53,7 +53,7 @@ export function handleFileAdded(event: FileAddedEvent): void {
 }
 
 export function handleFileDeleted(event: FileDeletedEvent): void {
-  let fileId = event.params.url
+  let fileId = event.params.user.toHexString() + "-" + event.params.url
   let file = File.load(fileId)
   if (file != null) {
     store.remove("File", fileId)
@@ -75,9 +75,11 @@ export function handleFileDeleted(event: FileDeletedEvent): void {
 }
 
 export function handleFileUpdated(event: FileUpdatedEvent): void {
-  let file = File.load(event.params.oldUrl)
+  let oldFileId = event.params.user.toHexString() + "-" + event.params.oldUrl
+  let file = File.load(oldFileId)
   if (file != null) {
-    let newFile = new File(event.params.newUrl)
+    let newFileId = event.params.user.toHexString() + "-" + event.params.newUrl
+    let newFile = new File(newFileId)
     newFile.url = event.params.newUrl
     newFile.category = file.category
     newFile.owner = file.owner
@@ -85,7 +87,7 @@ export function handleFileUpdated(event: FileUpdatedEvent): void {
     newFile.timestamp = event.block.timestamp
     newFile.save()
     
-    store.remove("File", event.params.oldUrl)
+    store.remove("File", oldFileId)
   }
 }
 

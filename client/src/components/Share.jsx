@@ -106,19 +106,23 @@ const Share = () => {
                 }
 
                 if (allFiles.length > 0) {
-                    const password = await requestPassword("Share Files", "Enter your Master Password to securely encrypt your files for the receiver:");
-                    if (!password) {
-                        throw new Error("Master Password required to share encrypted files.");
-                    }
-
+                    const provider = new ethers.providers.Web3Provider(window.ethereum);
+                    const signer = provider.getSigner();
                     const { getDeterministicKey, decryptAESKey, encryptAESKey } = await import('../utils/encryption');
-                    const secretKey = await getDeterministicKey(password, account);
+                    
+                    toast("Please sign to authenticate your session and share files.", { icon: '✍️' });
+                    const secretKey = await getDeterministicKey(account, signer);
 
                     const urls = [];
                     const encryptedKeysForReceiver = [];
 
                     for (const file of allFiles) {
-                        const encryptedAesKeyHex = await contract.encryptedAESKeys(file.url);
+                        let encryptedAesKeyHex = "";
+                        if (contract.getEncryptedAESKey) {
+                            encryptedAesKeyHex = await contract.getEncryptedAESKey(account, file.url);
+                        } else {
+                            encryptedAesKeyHex = await contract.encryptedAESKeys(file.url);
+                        }
                         if (encryptedAesKeyHex && encryptedAesKeyHex !== "MANUAL" && encryptedAesKeyHex !== "") {
                             // Decrypt AES key with Alice's secret key
                             const aesKey = await decryptAESKey(encryptedAesKeyHex, secretKey);

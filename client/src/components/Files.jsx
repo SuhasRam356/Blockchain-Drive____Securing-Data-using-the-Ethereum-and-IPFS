@@ -148,11 +148,28 @@ export default function Files({ contract, account, shared, title }) {
              return "File opened";
         }
         
+        let fileOwner = account;
+        if (shared === '1' && otherAddress) {
+            fileOwner = otherAddress.trim();
+            if (fileOwner.endsWith(".eth")) {
+                const ensProvider = new ethers.providers.JsonRpcProvider("https://cloudflare-eth.com");
+                fileOwner = (await ensProvider.resolveName(fileOwner)) || fileOwner;
+            }
+        }
+
         let encryptedAesKeyHex = "";
-        if (shared === '1' && contract.sharedEncryptedAESKeys) {
-            encryptedAesKeyHex = await contract.sharedEncryptedAESKeys(url, account);
+        if (shared === '1') {
+            if (contract.getSharedEncryptedAESKey) {
+                encryptedAesKeyHex = await contract.getSharedEncryptedAESKey(fileOwner, url, account);
+            } else if (contract.sharedEncryptedAESKeys) {
+                encryptedAesKeyHex = await contract.sharedEncryptedAESKeys(url, account);
+            }
         } else {
-            encryptedAesKeyHex = await contract.encryptedAESKeys(url);
+            if (contract.getEncryptedAESKey) {
+                encryptedAesKeyHex = await contract.getEncryptedAESKey(fileOwner, url);
+            } else if (contract.encryptedAESKeys) {
+                encryptedAesKeyHex = await contract.encryptedAESKeys(url);
+            }
         }
         if (encryptedAesKeyHex && encryptedAesKeyHex !== "MANUAL" && encryptedAesKeyHex !== "") {
              // Decrypt AES key using deterministic signature key
@@ -161,12 +178,7 @@ export default function Files({ contract, account, shared, title }) {
              const signer = provider.getSigner();
              const { getDeterministicKey, decryptAESKey } = await import('../utils/encryption');
              
-             const password = await requestPassword("Decrypt File", "Enter your Drive Master Password to decrypt:");
-             if (!password) {
-                 toast.error("Password required to view file.");
-                 return;
-             }
-             const secretKey = await getDeterministicKey(password, account);
+             const secretKey = await getDeterministicKey(account, signer);
              aesKeyToUse = await decryptAESKey(encryptedAesKeyHex, secretKey);
         } else if (!encryptedAesKeyHex || encryptedAesKeyHex === "") {
              // Unencrypted file
@@ -232,9 +244,19 @@ export default function Files({ contract, account, shared, title }) {
       setHistoryIsStego(fileObj.category.includes('#Stego'));
       setShowHistoryModal(true);
       setHistoryLoading(true);
+      
+      let fileOwner = account;
+      if (shared === '1' && otherAddress) {
+          fileOwner = otherAddress.trim();
+          if (fileOwner.endsWith(".eth")) {
+              const ensProvider = new ethers.providers.JsonRpcProvider("https://cloudflare-eth.com");
+              fileOwner = (await ensProvider.resolveName(fileOwner)) || fileOwner;
+          }
+      }
+
       try {
           if (contract.getFileHistory) {
-              const history = await contract.getFileHistory(fileUrl);
+              const history = await contract.getFileHistory(fileOwner, fileObj.url);
               setHistoryList(history);
           } else {
               setHistoryList([]);
@@ -254,14 +276,17 @@ export default function Files({ contract, account, shared, title }) {
       }
       
       const task = async () => {
-          // We rollback by treating the old IPFS URL as the 'new' version content
-          // To do this securely, we should fetch its signature and encrypted AES key, 
-          // or just reuse them since they are on the blockchain.
-          // Wait, the easiest way to rollback is to call updateFile with the old URL and its existing metadata.
+          let storedSignature, storedHash, storedEncKey;
           
-          const storedSignature = await contract.fileSignatures(historyUrl);
-          const storedHash = await contract.fileHashes(historyUrl);
-          const storedEncKey = await contract.encryptedAESKeys ? await contract.encryptedAESKeys(historyUrl) : "";
+          if (contract.getFileSignature) {
+              storedSignature = await contract.getFileSignature(account, historyUrl);
+              storedHash = await contract.getFileHash(account, historyUrl);
+              storedEncKey = await contract.getEncryptedAESKey(account, historyUrl);
+          } else {
+              storedSignature = await contract.fileSignatures(historyUrl);
+              storedHash = await contract.fileHashes(historyUrl);
+              storedEncKey = await contract.encryptedAESKeys ? await contract.encryptedAESKeys(historyUrl) : "";
+          }
           
           const tx = await contract.updateFile(historyFileUrl, historyUrl, storedHash, storedSignature, storedEncKey);
           await tx.wait();

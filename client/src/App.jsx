@@ -58,11 +58,7 @@ function App() {
             
             if (!currentPubKey || currentPubKey === "" || !isMigrated) {
                 const { getDeterministicKey, derivePublicKey } = await import('./utils/encryption');
-                const password = await requestPassword("E2EE Setup", "Enter a Master Password for End-to-End Encryption (Keep this safe!):");
-                if (!password) {
-                    throw new Error("Master Password is required for E2EE setup.");
-                }
-                const secretKey = await getDeterministicKey(password, address);
+                const secretKey = await getDeterministicKey(address, signer);
                 const pubKey = derivePublicKey(secretKey);
                 
                 if (currentPubKey !== pubKey) {
