@@ -48,12 +48,18 @@ export const encodeStego = (coverImageFile, secretText) => {
             const data = imageData.data;
             
             if (!img) {
-                // Generate random noise
-                // This gives a very high probability of dx+dy > 20
+                // Generate a random dominant base color for this specific image
+                // so that multiple generated images look visually distinct from each other.
+                const baseR = Math.floor(Math.random() * 156) + 50;
+                const baseG = Math.floor(Math.random() * 156) + 50;
+                const baseB = Math.floor(Math.random() * 156) + 50;
+                
+                // Add high-amplitude noise to the base color to ensure it passes 
+                // the `isHighFrequency` edge-detection check for data embedding.
                 for (let i = 0; i < data.length; i += 4) {
-                    data[i] = Math.floor(Math.random() * 256);     // R
-                    data[i+1] = Math.floor(Math.random() * 256);   // G
-                    data[i+2] = Math.floor(Math.random() * 256);   // B
+                    data[i] = Math.min(255, Math.max(0, baseR + (Math.random() > 0.5 ? 50 : -50)));     // R
+                    data[i+1] = Math.min(255, Math.max(0, baseG + (Math.random() > 0.5 ? 50 : -50)));   // G
+                    data[i+2] = Math.min(255, Math.max(0, baseB + (Math.random() > 0.5 ? 50 : -50)));   // B
                     data[i+3] = 255; // Alpha
                 }
             }
