@@ -144,8 +144,16 @@ const FileUpload = ({ contract, account, provider, updateTarget = null, onUpload
 
             toast("Uploading to decentralized storage...", { icon: '☁️' });
             const uri = await storage.upload(fileDataToUpload, {
+              uploadWithoutDirectory: true,
               onProgress: (event) => {
-                const percentCompleted = Math.round(event.progress || (event.loaded / event.total * 100) || 0);
+                let percentCompleted = 0;
+                if (event.total) {
+                  percentCompleted = Math.round((event.progress / event.total) * 100);
+                } else {
+                  // Fallback if total is undefined
+                  percentCompleted = Math.round(event.progress || 0);
+                  if (percentCompleted > 100) percentCompleted = 99; 
+                }
                 setUploadProgress(percentCompleted);
               }
             });
@@ -215,8 +223,16 @@ const FileUpload = ({ contract, account, provider, updateTarget = null, onUpload
               finalFilesData.push(fileDataToUpload);
 
               const uri = await storage.upload(fileDataToUpload, {
+                uploadWithoutDirectory: true,
                 onProgress: (event) => {
-                  const percentCompleted = Math.round(event.progress || (event.loaded / event.total * 100) || 0);
+                  let percentCompleted = 0;
+                  if (event.total) {
+                    percentCompleted = Math.round((event.progress / event.total) * 100);
+                  } else {
+                    // Fallback if total is undefined
+                    percentCompleted = Math.round(event.progress || 0);
+                    if (percentCompleted > 100) percentCompleted = 99; 
+                  }
                   setUploadProgress(percentCompleted);
                 }
               });
