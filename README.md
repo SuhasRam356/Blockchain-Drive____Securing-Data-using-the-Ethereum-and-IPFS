@@ -155,12 +155,13 @@ graph TD
         IPFS[Decentralized File Storage]
     end
 
-    UI <-->|Upload/View| Crypto
-    Crypto <-->|E2EE Keys via Signatures| Signer
+    UI -->|Upload/View| Crypto
+    Crypto -->|E2EE Keys via Signatures| Signer
+    Signer -->|Returns Key| Crypto
     Crypto -->|1. Encrypted Bytes| IPFS
     Crypto -->|2. Store Hash & Access| SC
     SC -->|3. Emit Events| Sub
-    UI <--|4. Query Fast File History| Sub
+    Sub -->|4. Query Fast File History| UI
     IPFS -->|5. Fetch Encrypted Bytes| Crypto
 ```
 
