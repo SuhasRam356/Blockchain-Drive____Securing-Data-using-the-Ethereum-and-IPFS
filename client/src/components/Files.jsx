@@ -367,7 +367,7 @@ export default function Files({ contract, account, shared, title }) {
                   <div className="w-full h-48 bg-slate-800 rounded-lg overflow-hidden relative mb-4 flex items-center justify-center group">
                     <img 
                       className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" 
-                      src={fileObj.url} 
+                      src={fileObj.url.replace("cf-ipfs.com", "ipfs.io")} 
                       alt="File preview"
                       onError={(e) => {
                         e.target.style.display = 'none';

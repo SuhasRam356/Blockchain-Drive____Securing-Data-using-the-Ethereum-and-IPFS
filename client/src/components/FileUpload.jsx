@@ -149,7 +149,7 @@ const FileUpload = ({ contract, account, provider, updateTarget = null, onUpload
                 setUploadProgress(percentCompleted);
             });
             const cid = uri.replace("ipfs://", "");
-            uploadedHashes.push(`https://cf-ipfs.com/ipfs/${cid}`);
+            uploadedHashes.push(`https://ipfs.io/ipfs/${cid}`);
             
             const currentTags = useStego ? ['#Stego'] : [];
             if (isZkpValid) currentTags.push('#ZKP-Verified');
@@ -223,7 +223,7 @@ const FileUpload = ({ contract, account, provider, updateTarget = null, onUpload
                   setUploadProgress(percentCompleted);
               });
               const cid = uri.replace("ipfs://", "");
-              uploadedHashes.push(`https://cf-ipfs.com/ipfs/${cid}`);
+              uploadedHashes.push(`https://ipfs.io/ipfs/${cid}`);
             }
             
             const combinedCategory = category;
