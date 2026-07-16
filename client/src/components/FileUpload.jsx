@@ -143,7 +143,12 @@ const FileUpload = ({ contract, account, provider, updateTarget = null, onUpload
             finalFilesData.push(fileDataToUpload);
 
             toast("Uploading to decentralized storage...", { icon: '☁️' });
-            const uri = await storage.upload(fileDataToUpload);
+            const uri = await storage.upload(fileDataToUpload, {
+              onProgress: (event) => {
+                const percentCompleted = Math.round(event.progress || (event.loaded / event.total * 100) || 0);
+                setUploadProgress(percentCompleted);
+              }
+            });
             const cid = uri.replace("ipfs://", "");
             uploadedHashes.push(`https://cf-ipfs.com/ipfs/${cid}`);
             
@@ -209,7 +214,12 @@ const FileUpload = ({ contract, account, provider, updateTarget = null, onUpload
 
               finalFilesData.push(fileDataToUpload);
 
-              const uri = await storage.upload(fileDataToUpload);
+              const uri = await storage.upload(fileDataToUpload, {
+                onProgress: (event) => {
+                  const percentCompleted = Math.round(event.progress || (event.loaded / event.total * 100) || 0);
+                  setUploadProgress(percentCompleted);
+                }
+              });
               const cid = uri.replace("ipfs://", "");
               uploadedHashes.push(`https://cf-ipfs.com/ipfs/${cid}`);
             }
