@@ -3,7 +3,7 @@ import DriveDAO from "../abis/DriveDAO.json";
 import DriveToken from "../abis/DriveToken.json";
 import DriveFaucet from "../abis/DriveFaucet.json";
 
-export const LIGHTHOUSE_API_KEY = import.meta.env.VITE_LIGHTHOUSE_API_KEY;
+
 
 export const contractAddress = import.meta.env.VITE_CONTRACT_ADDRESS;
 export const contractAbi = UploadUpgradeableV7.abi || UploadUpgradeableV7;

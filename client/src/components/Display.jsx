@@ -30,8 +30,8 @@ const Display = ({ contract, account }) => {
           <a href={item} key={i} target="_blank">
             <img
               key={i}
-              // src={`https://gateway.lighthouse.storage/ipfs/${item.substring(36)}`}
-              src={`https://gateway.lighthouse.storage/ipfs/QmQvi5s12wdKnuNqRuoLHEekY19EBk7bWjne2b1NARwcyi`}
+              // src={`https://ipfs.io/ipfs/${item.substring(36)}`}
+              src={`https://ipfs.io/ipfs/QmQvi5s12wdKnuNqRuoLHEekY19EBk7bWjne2b1NARwcyi`}
               
               alt="new"
               className="image-list"

@@ -9,7 +9,7 @@ Whether you want to securely store personal files, share data with other Ethereu
 ## ✨ Key Features
 
 - **End-to-End Encryption (E2EE):** All files are encrypted locally in the browser using AES-256 before ever touching the network. Keys are deterministically derived from your MetaMask signature, meaning only you (and users you authorize) can decrypt your data.
-- **Decentralized Storage (IPFS):** Encrypted files are pinned securely to the InterPlanetary File System (IPFS) via Lighthouse Storage.
+- **Decentralized Storage (IPFS):** Encrypted files are pinned securely to the InterPlanetary File System (IPFS) via Filebase.
 - **The Graph Protocol:** Frontend data (like your Dashboard and file history) is indexed and queried blazingly fast using a custom Subgraph hosted on Subgraph Studio.
 - **Advanced Steganography:** Hide the very existence of your data. The platform can mathematically inject your encrypted files inside locally-generated organic noise images (Data Matrices) before upload.
 - **Zero-Knowledge Proofs (ZKP):** Verify file integrity and validate uploads mathematically without revealing the underlying data.
@@ -24,7 +24,7 @@ Whether you want to securely store personal files, share data with other Ethereu
 - **Smart Contracts:** Solidity, Hardhat, OpenZeppelin (Upgradeable & DAO Contracts)
 - **Cryptography:** CryptoJS (AES-256), SnarkJS (Zero-Knowledge Proofs)
 - **Indexing:** The Graph (Subgraph Studio), GraphQL
-- **Storage:** IPFS (Lighthouse)
+- **Storage:** IPFS (Filebase S3 API)
 - **Network:** Ethereum Sepolia Testnet (or Local Hardhat Node)
 
 ---
@@ -34,7 +34,7 @@ Whether you want to securely store personal files, share data with other Ethereu
 To run this project locally, you will need the following installed on your machine:
 1. **Node.js** (v18 or higher recommended)
 2. **MetaMask** wallet extension installed in your browser.
-3. **Lighthouse Account:** Get a free API Key from [Lighthouse Storage](https://www.lighthouse.storage/).
+3. **Filebase Account:** Get a free API Key from [Filebase](https://filebase.com/).
 4. **Alchemy / Infura:** Get a free Sepolia RPC URL (e.g., from [Alchemy](https://www.alchemy.com/)).
 5. **Subgraph Studio:** Create a free account at [The Graph Studio](https://thegraph.com/studio/) and create a subgraph named `blockchain-drive`.
 6. **Sepolia Testnet ETH:** You will need test ETH to deploy contracts.
@@ -103,7 +103,9 @@ npm install
 **Create Environment Variables:**
 Create a `.env` file in the `client` directory:
 ```env
-VITE_LIGHTHOUSE_API_KEY=your_lighthouse_api_key
+VITE_FILEBASE_ACCESS_KEY=your_filebase_access_key
+VITE_FILEBASE_SECRET_KEY=your_filebase_secret_key
+VITE_FILEBASE_BUCKET=your_filebase_bucket_name
 ```
 
 **Update Configurations:**
@@ -140,7 +142,7 @@ The application will launch on `http://localhost:5050` (or `5173`).
 When evaluating the security of Blockchain Drive, it is important to understand exactly what the system protects against, and its known boundaries.
 
 ### What it Protects Against (In-Scope)
-- **Compromised Storage Providers:** Even if Lighthouse or the underlying IPFS node operators inspect your files, they will only see AES-256 encrypted gibberish. The server cannot read your data.
+- **Compromised Storage Providers:** Even if Filebase or the underlying IPFS node operators inspect your files, they will only see AES-256 encrypted gibberish. The server cannot read your data.
 - **Offline Dictionary Attacks:** By deriving E2EE keys from Ethereum wallet signatures (`personal_sign`) rather than human-generated passwords, the encryption keys possess 256 bits of pure entropy, rendering offline brute-forcing physically impossible.
 - **Access Control Griefing:** Smart contract functions strictly enforce `_ownsFile(msg.sender)`, preventing malicious actors from overwriting your shared keys.
 - **Smart Contract Zero-Days:** The contract implements an emergency `pause()` function via the DAO to freeze all file sharing and uploading in the event of a severe vulnerability.
