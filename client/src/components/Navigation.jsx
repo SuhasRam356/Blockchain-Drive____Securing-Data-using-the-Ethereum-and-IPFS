@@ -35,7 +35,7 @@ const Navigation = () => {
 
   return (
     <>
-      <Disclosure as="nav" className="sticky top-0 z-50 glass-panel border-b-0 rounded-none bg-slate-900/50">
+      <Disclosure as="nav" className="sticky top-0 z-50 glass-panel border-b-0 border-t-0 border-x-0 rounded-none bg-transparent backdrop-blur-xl">
         {({ open }) => (
           <>
             <div className="mx-auto max-w-7xl px-2 sm:px-6 lg:px-8">
@@ -55,13 +55,13 @@ const Navigation = () => {
                 <div className="flex flex-1 items-center justify-center sm:items-stretch sm:justify-start">
                   <div className="flex flex-shrink-0 items-center">
                     <Link to='/' className="flex items-center group">
-                      <svg className="h-10 w-10 text-cyan-400 group-hover:text-cyan-300 transition-colors drop-shadow-[0_0_8px_rgba(34,211,238,0.6)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <svg className="h-10 w-10 text-cyan-400 group-hover:text-cyan-300 transition-colors drop-shadow-[0_0_12px_rgba(0,243,255,0.8)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
                         <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
                         <line x1="12" y1="22.08" x2="12" y2="12"></line>
                         <circle cx="12" cy="12" r="3" fill="currentColor"></circle>
                       </svg>
-                      <span className='text-2xl font-bold ml-3 text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500'>
+                      <span className='text-3xl font-display font-bold ml-3 text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-blue-400 to-purple-500 drop-shadow-[0_0_10px_rgba(0,243,255,0.3)]'>
                         BlockDrive
                       </span>
                     </Link>
@@ -103,11 +103,11 @@ const Navigation = () => {
                   {/* Profile dropdown */}
                   <Menu as="div" className="relative ml-3">
                     <div>
-                      <Menu.Button className="relative flex rounded-full bg-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:ring-offset-2 focus:ring-offset-slate-900 border border-white/10 p-1 hover:bg-slate-700 transition-colors">
+                      <Menu.Button className="relative flex rounded-full glass-panel text-sm focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:ring-offset-2 focus:ring-offset-slate-900 border border-white/20 p-1 hover:border-cyan-400 transition-colors hover:shadow-[0_0_15px_rgba(0,243,255,0.4)]">
                         <span className="absolute -inset-1.5" />
                         <span className="sr-only">Open user menu</span>
-                        <div className="h-8 w-8 rounded-full bg-gradient-to-tr from-cyan-400 to-purple-500 flex items-center justify-center text-white shadow-[0_0_10px_rgba(34,211,238,0.5)]">
-                          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <div className="h-9 w-9 rounded-full bg-gradient-to-tr from-cyan-400 to-purple-600 flex items-center justify-center text-white shadow-[0_0_12px_rgba(176,38,255,0.6)]">
+                          <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
                           </svg>
                         </div>

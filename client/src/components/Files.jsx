@@ -348,8 +348,8 @@ export default function Files({ contract, account, shared, title }) {
             {allfiles.filter(f => selectedFilter === "All" || getCategoryInfo(f.category).name === selectedFilter).map((fileObj, index) => {
               const { name: catName, tags } = getCategoryInfo(fileObj.category);
               return (
-              <li key={index} className="col-span-1 flex flex-col bg-slate-900/50 rounded-xl shadow-xl overflow-hidden border border-white/5 hover:border-cyan-500/30 transition-all duration-300 relative">
-                <div className="absolute top-3 right-3 z-10 bg-cyan-900/80 backdrop-blur-md px-3 py-1 rounded-full border border-cyan-500/30 text-xs font-semibold text-cyan-300 shadow-lg">
+              <li key={index} className="col-span-1 flex flex-col glass-panel rounded-2xl overflow-hidden hover:-translate-y-2 hover:shadow-[0_0_30px_rgba(0,243,255,0.2)] transition-all duration-300 relative group">
+                <div className="absolute top-3 right-3 z-10 bg-cyan-950/80 backdrop-blur-md px-3 py-1 rounded-full border border-cyan-400/50 text-xs font-bold text-cyan-300 shadow-[0_0_10px_rgba(0,243,255,0.3)]">
                   {catName}
                 </div>
                 {shared && fileObj.sender && (
@@ -383,9 +383,13 @@ export default function Files({ contract, account, shared, title }) {
                     {fileObj.url.substring(34)}
                   </p>
                   {tags.length > 0 && (
-                    <div className="flex gap-1.5 flex-wrap w-full mb-3">
+                    <div className="flex gap-2 flex-wrap w-full mb-4">
                       {tags.map((tag, i) => (
-                        <span key={i} className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                        <span key={i} className={`px-2 py-1 rounded-md text-[10px] font-bold border shadow-[0_0_10px_rgba(255,255,255,0.1)] ${
+                          tag === '#Stego' ? 'bg-purple-900/40 text-purple-300 border-purple-400/50 shadow-[0_0_10px_rgba(176,38,255,0.4)]' :
+                          tag === '#ZKP-Verified' ? 'bg-green-900/40 text-green-300 border-green-400/50 shadow-[0_0_10px_rgba(0,255,136,0.4)]' :
+                          'bg-cyan-900/40 text-cyan-300 border-cyan-400/50'
+                        }`}>
                           {tag}
                         </span>
                       ))}
@@ -439,10 +443,10 @@ export default function Files({ contract, account, shared, title }) {
           </ul>
           
           {hasMore && (
-            <div className="mt-10 flex justify-center">
+            <div className="mt-12 flex justify-center">
               <button 
                 onClick={loadMoreFiles}
-                className="px-8 py-3 bg-slate-800 hover:bg-slate-700 text-white font-semibold rounded-full border border-slate-600 transition-all shadow-md"
+                className="px-8 py-3 glass-panel hover:bg-white/10 text-white font-bold rounded-full transition-all shadow-[0_0_15px_rgba(255,255,255,0.05)] hover:shadow-[0_0_20px_rgba(0,243,255,0.2)] hover:border-cyan-400/50"
               >
                 Load More Files ({allfiles.length} of {totalFiles})
               </button>

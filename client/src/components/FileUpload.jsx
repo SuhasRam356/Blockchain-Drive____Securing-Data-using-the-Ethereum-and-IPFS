@@ -299,16 +299,19 @@ const FileUpload = ({ contract, account, provider, updateTarget = null, onUpload
             onChange={retrieveFile}
             className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10 disabled:cursor-not-allowed"
           />
-          <div className={`glass-input border-dashed border-2 flex flex-col items-center justify-center py-8 transition-colors ${files.length > 0 ? 'border-cyan-400 bg-cyan-900/20' : 'border-slate-600 hover:border-cyan-500 hover:bg-slate-800/50'}`}>
+          <div className={`w-full rounded-2xl border-dashed border-2 flex flex-col items-center justify-center py-10 transition-all duration-300 backdrop-blur-md ${files.length > 0 ? 'border-cyan-400 bg-cyan-900/20 shadow-[0_0_30px_rgba(0,243,255,0.15)]' : 'border-white/10 bg-white/5 hover:border-cyan-500 hover:bg-white/10'}`}>
             {files.length > 0 ? (
-              <svg className="w-12 h-12 text-cyan-400 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+              <div className="relative">
+                <div className="absolute inset-0 bg-cyan-400 blur-xl opacity-50 rounded-full animate-glow-pulse"></div>
+                <svg className="w-14 h-14 text-cyan-400 relative z-10 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+              </div>
             ) : (
-              <svg className="w-12 h-12 text-slate-400 group-hover:text-cyan-400 transition-colors mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+              <svg className="w-14 h-14 text-slate-400 group-hover:text-cyan-400 transition-colors duration-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
             )}
-            <p className="text-lg font-medium text-white mb-1">
-              {files.length > 0 ? "Files Selected" : "Click or drag to upload"}
+            <p className="text-xl font-display font-bold text-white mb-2">
+              {files.length > 0 ? "Files Ready for Vault" : "Drag & Drop to Encrypt"}
             </p>
-            <p className="text-sm text-slate-400 truncate max-w-[250px] md:max-w-xs">
+            <p className="text-sm font-medium text-slate-400 truncate max-w-[250px] md:max-w-xs">
               {fileNames}
             </p>
           </div>
@@ -332,11 +335,11 @@ const FileUpload = ({ contract, account, provider, updateTarget = null, onUpload
         
         {/* Receiver Address Input */}
         <div>
-          <label className="block text-sm font-medium text-slate-300 mb-2 text-left ml-1">Send to (Optional)</label>
+          <label className="block text-sm font-medium font-display text-slate-300 mb-2 text-left ml-1">Send to (Optional)</label>
           <input
             type="text"
-            placeholder="0x... Receiver Address"
-            className="glass-input"
+            placeholder="0x... or ENS Name"
+            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400 transition-all backdrop-blur-md"
             value={receiverAddress}
             onChange={(e) => setReceiverAddress(e.target.value)}
           />

@@ -110,7 +110,8 @@ function App() {
   }
 
   return (
-    <div className="relative z-10 min-h-screen pb-20"> 
+    <div className="App flex flex-col min-h-screen text-white font-sans bg-transparent">
+      <Navigation />
       <Toaster position="bottom-right" />
       <div className="pt-20 pb-10 px-4 flex flex-col items-center justify-center text-center">
         <h1 className='text-5xl md:text-7xl font-extrabold tracking-tight mb-6'>
