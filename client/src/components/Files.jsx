@@ -1,6 +1,6 @@
 import React, { useState, Fragment } from "react"
 import { Menu, Transition } from '@headlessui/react'
-import { EllipsisVerticalIcon, LinkSlashIcon } from '@heroicons/react/24/outline'
+import { EllipsisVerticalIcon } from '@heroicons/react/24/outline'
 import toast from 'react-hot-toast';
 import axios from 'axios';
 import * as CryptoJSImport from "crypto-js";
@@ -493,7 +493,9 @@ export default function Files({ contract, account, shared, title }) {
         </>
       ) : (
         <div className="flex flex-col items-center justify-center py-20 bg-slate-900/20 rounded-2xl border border-white/5">
-          <LinkSlashIcon className="w-16 h-16 text-slate-600 mb-4" />
+          <svg className="w-16 h-16 text-slate-600 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0 -18 0 M15 9l-6 6 M9 9l6 6" />
+          </svg>
           <h3 className="text-xl font-display font-bold text-slate-300">No Files Found</h3>
           <p className="text-slate-500 max-w-md text-center mt-2">
             There are no encrypted records linked to this address on the distributed ledger.
