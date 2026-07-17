@@ -1,6 +1,7 @@
 import { ethers } from 'ethers';
 import * as sigUtilImport from '@metamask/eth-sig-util';
 const sigUtil = sigUtilImport.default || sigUtilImport;
+import { contractAddress } from './constants';
 
 // Cache the deterministic key in memory so the user only signs once per session
 let cachedSecretKey = null;
@@ -19,8 +20,32 @@ export const getDeterministicKey = async (address, signer) => {
     }
     
     try {
-        const message = "Sign this message to authenticate your E2EE session for Blockchain Drive.\n\nThis cryptographically derives a deterministic key used to decrypt your files without needing a Master Password.";
-        const signature = await signer.signMessage(message);
+        const chainId = await signer.getChainId();
+
+        // EIP-712 Domain Separator
+        // This mathematically binds the signature to our specific application, network, and smart contract.
+        // It prevents cross-domain replay attacks (phishing) and cross-chain replay attacks.
+        const domain = {
+            name: "Blockchain Drive",
+            version: "1.0",
+            chainId: chainId,
+            verifyingContract: contractAddress
+        };
+
+        const types = {
+            Authentication: [
+                { name: "message", type: "string" },
+                { name: "intent", type: "string" }
+            ]
+        };
+
+        const value = {
+            message: "Sign this message to authenticate your E2EE session.",
+            intent: "Derive cryptographic master key for file encryption/decryption."
+        };
+
+        // ethers v5 uses _signTypedData to execute EIP-712
+        const signature = await signer._signTypedData(domain, types, value);
         
         const encoder = new TextEncoder();
         const data = encoder.encode(signature);
