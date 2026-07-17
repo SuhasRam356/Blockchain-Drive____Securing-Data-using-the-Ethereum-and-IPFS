@@ -115,15 +115,23 @@ export const encodeStego = (coverImageFile, secretText) => {
             reader.onerror = () => reject(new Error("Failed to read cover image"));
             reader.readAsDataURL(coverImageFile);
         } else {
-            // Generate exact sizing mathematically
+            // Dynamically calculate the minimum image size needed to hold the encrypted data
             const bitsNeeded = secretBytes.length * 8;
-            // With random noise, about 95% of pixels are high-frequency.
-            // We use a conservative 2 bits per pixel just to be absolutely safe.
-            const pixelsNeeded = Math.ceil(bitsNeeded / 2);
-            const paddedPixels = pixelsNeeded + 4000; // Account for border pixels skipped by isHighFrequency
-            const size = Math.max(10, Math.ceil(Math.sqrt(paddedPixels)));
+            // For real images (which are smoother than mathematical noise), 
+            // we assume only ~10% of pixels will pass the high-frequency edge detection
+            const pixelsNeeded = bitsNeeded * 10 + 4000; 
+            const size = Math.max(400, Math.ceil(Math.sqrt(pixelsNeeded)));
             
-            processImage(null, size);
+            const img = new Image();
+            img.crossOrigin = "Anonymous"; // Crucial for reading canvas data without security errors
+            img.src = `https://picsum.photos/${size}/${size}?random=${Date.now()}`;
+            
+            img.onload = () => processImage(img);
+            img.onerror = () => {
+                console.warn("Failed to fetch random image from web, falling back to generated noise.");
+                // Fall back to noise generation by passing null
+                processImage(null, size);
+            };
         }
     });
 };
