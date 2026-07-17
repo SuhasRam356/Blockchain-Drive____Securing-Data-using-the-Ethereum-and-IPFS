@@ -66,34 +66,44 @@ export const encodeStego = (coverImageFile, secretText) => {
             
             let byteIndex = 0;
             let bitIndex = 0;
-            let x = 0;
-            let y = 0;
             
-            for (let i = 0; i < data.length; i += 4) {
-                if (byteIndex >= secretBytes.length) break;
-                
-                for (let j = 0; j < 3; j++) {
-                    if (byteIndex < secretBytes.length && isHighFrequency(data, i + j, width, height, x, y)) {
-                        const bit = (secretBytes[byteIndex] >> (7 - bitIndex)) & 1;
-                        data[i + j] = (data[i + j] & ~255) | (data[i + j] & 254) | bit; // Ensure we only modify LSB
-                        
-                        bitIndex++;
-                        if (bitIndex === 8) {
-                            bitIndex = 0;
-                            byteIndex++;
+            const embedPass = (useHighFreq) => {
+                let x = 0;
+                let y = 0;
+                for (let i = 0; i < data.length; i += 4) {
+                    if (byteIndex >= secretBytes.length) return;
+                    
+                    for (let j = 0; j < 3; j++) {
+                        if (byteIndex < secretBytes.length && isHighFrequency(data, i + j, width, height, x, y) === useHighFreq) {
+                            const bit = (secretBytes[byteIndex] >> (7 - bitIndex)) & 1;
+                            data[i + j] = (data[i + j] & ~255) | (data[i + j] & 254) | bit; 
+                            
+                            bitIndex++;
+                            if (bitIndex === 8) {
+                                bitIndex = 0;
+                                byteIndex++;
+                            }
                         }
                     }
+                    
+                    x++;
+                    if (x >= width) {
+                        x = 0;
+                        y++;
+                    }
                 }
-                
-                x++;
-                if (x >= width) {
-                    x = 0;
-                    y++;
-                }
+            };
+
+            // Pass 1: Stealthy Embedding (only high-frequency edges)
+            embedPass(true);
+            
+            // Pass 2: Dense Embedding (force into remaining pixels if file is massive)
+            if (byteIndex < secretBytes.length) {
+                embedPass(false);
             }
             
             if (byteIndex < secretBytes.length) {
-                reject(new Error(`Cover image too smooth or small. Can't hold the required data.`));
+                reject(new Error(`Cover image too small to hold the required data even with dense embedding.`));
                 return;
             }
             
@@ -117,29 +127,23 @@ export const encodeStego = (coverImageFile, secretText) => {
         } else {
             const bitsNeeded = secretBytes.length * 8;
             
-            // For real images (which are smooth), we need ~10x more pixels to find enough high-frequency edges
-            const pixelsNeededForReal = bitsNeeded * 10 + 4000; 
-            const sizeForReal = Math.ceil(Math.sqrt(pixelsNeededForReal));
+            // With the new Dual-Pass embedding, every single pixel can hold 3 bits if forced.
+            // We just need a canvas big enough to hold the file (width * height * 3 >= bitsNeeded)
+            const absoluteMinimumPixels = Math.ceil(bitsNeeded / 3) + 4000;
+            const sizeNeeded = Math.ceil(Math.sqrt(absoluteMinimumPixels));
             
-            // If the file is too large (requiring > 2000x2000 real image), it will crash the browser canvas 
-            // and Picsum APIs. Instead, we must use densely-packed generated noise which fits in a tiny canvas.
-            if (sizeForReal <= 2000) {
-                const size = Math.max(400, sizeForReal);
-                const img = new Image();
-                img.crossOrigin = "Anonymous"; 
-                img.src = `https://picsum.photos/${size}/${size}?random=${Date.now()}`;
-                
-                img.onload = () => processImage(img);
-                img.onerror = () => {
-                    console.warn("Failed to fetch random image, falling back to generated noise.");
-                    const sizeForNoise = Math.ceil(Math.sqrt(Math.ceil(bitsNeeded / 2) + 4000));
-                    processImage(null, Math.max(10, sizeForNoise));
-                };
-            } else {
-                // File is very large! Skip real images and generate dense mathematical noise directly
-                const sizeForNoise = Math.ceil(Math.sqrt(Math.ceil(bitsNeeded / 2) + 4000));
-                processImage(null, Math.max(10, sizeForNoise));
-            }
+            // Cap at 3000x3000px (~27MB of memory) to strictly prevent browser canvas crashes
+            const size = Math.min(3000, Math.max(400, sizeNeeded));
+            
+            const img = new Image();
+            img.crossOrigin = "Anonymous"; 
+            img.src = `https://picsum.photos/${size}/${size}?random=${Date.now()}`;
+            
+            img.onload = () => processImage(img);
+            img.onerror = () => {
+                console.warn("Failed to fetch random image, falling back to generated noise.");
+                processImage(null, size);
+            };
         }
     });
 };
@@ -170,51 +174,68 @@ export const decodeStego = (stegoImageBlob) => {
             
             let currentByte = 0;
             let bitIndex = 0;
-            let x = 0;
-            let y = 0;
+            let found = false;
             
-            for (let i = 0; i < data.length; i += 4) {
-                for (let j = 0; j < 3; j++) {
-                    if (isHighFrequency(data, i + j, canvas.width, canvas.height, x, y)) {
-                        const bit = data[i + j] & 1;
-                        currentByte = (currentByte << 1) | bit;
-                        
-                        bitIndex++;
-                        if (bitIndex === 8) {
-                            extractedBytes[byteCount++] = currentByte;
+            const extractPass = (useHighFreq) => {
+                let x = 0;
+                let y = 0;
+                for (let i = 0; i < data.length; i += 4) {
+                    if (found) return;
+                    
+                    for (let j = 0; j < 3; j++) {
+                        if (isHighFrequency(data, i + j, canvas.width, canvas.height, x, y) === useHighFreq) {
+                            const bit = data[i + j] & 1;
+                            currentByte = (currentByte << 1) | bit;
                             
-                            // Shift window left
-                            for (let k = 0; k < delimiterLen - 1; k++) windowBytes[k] = windowBytes[k + 1];
-                            windowBytes[delimiterLen - 1] = currentByte;
-                            
-                            // Check match
-                            if (byteCount >= delimiterLen) {
-                                let isMatch = true;
-                                for (let k = 0; k < delimiterLen; k++) {
-                                    if (windowBytes[k] !== delimiterBytes[k]) {
-                                        isMatch = false;
-                                        break;
+                            bitIndex++;
+                            if (bitIndex === 8) {
+                                extractedBytes[byteCount++] = currentByte;
+                                
+                                // Shift window left
+                                for (let k = 0; k < delimiterLen - 1; k++) windowBytes[k] = windowBytes[k + 1];
+                                windowBytes[delimiterLen - 1] = currentByte;
+                                
+                                // Check match
+                                if (byteCount >= delimiterLen) {
+                                    let isMatch = true;
+                                    for (let k = 0; k < delimiterLen; k++) {
+                                        if (windowBytes[k] !== delimiterBytes[k]) {
+                                            isMatch = false;
+                                            break;
+                                        }
+                                    }
+                                    
+                                    if (isMatch) {
+                                        found = true;
+                                        const finalBytes = extractedBytes.slice(0, byteCount - delimiterLen);
+                                        resolve(new TextDecoder().decode(finalBytes));
+                                        return;
                                     }
                                 }
-                                
-                                if (isMatch) {
-                                    const finalBytes = extractedBytes.slice(0, byteCount - delimiterLen);
-                                    resolve(new TextDecoder().decode(finalBytes));
-                                    return;
-                                }
+                                currentByte = 0;
+                                bitIndex = 0;
                             }
-                            currentByte = 0;
-                            bitIndex = 0;
                         }
                     }
+                    x++;
+                    if (x >= canvas.width) {
+                        x = 0;
+                        y++;
+                    }
                 }
-                x++;
-                if (x >= canvas.width) {
-                    x = 0;
-                    y++;
-                }
+            };
+
+            // Pass 1: Stealthy Extraction (high-frequency edges)
+            extractPass(true);
+            
+            // Pass 2: Dense Extraction (remaining pixels)
+            if (!found) {
+                extractPass(false);
             }
-            reject(new Error("No hidden data found or image corrupted."));
+            
+            if (!found) {
+                reject(new Error("No hidden data found or image corrupted."));
+            }
         };
         img.onerror = () => {
             URL.revokeObjectURL(objectUrl);
