@@ -217,25 +217,35 @@ const Share = () => {
 
                 <div className="glass-panel p-8 relative overflow-hidden">
                     <div className="absolute bottom-0 right-0 w-64 h-64 bg-purple-500/10 rounded-full blur-3xl -z-10 -mr-10 -mb-10"></div>
-                    
-                    <h3 className="text-xl font-bold text-slate-200 mb-6">Shared Accounts</h3>
+                    <div className="flex items-center justify-between mb-6">
+                        <h3 className="text-xl font-bold text-slate-200">Shared Accounts</h3>
+                        <span className="text-xs font-mono bg-purple-500/20 text-purple-300 px-3 py-1 rounded-full border border-purple-500/30">
+                            {sharedAddress.filter(addr => addr[1]).length} Active Links
+                        </span>
+                    </div>
                     
                     {sharedAddress.length > 0 && sharedAddress.some(addr => addr[1]) ? (
-                        <ul className="space-y-3">
+                        <ul className="space-y-4">
                             {sharedAddress.map((address, id) => (
                                 address[1] ? (
-                                    <li key={id} className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-slate-900/50 p-4 rounded-xl border border-white/5 hover:border-white/10 transition-colors">
-                                        <div className="flex items-center gap-3">
-                                            <div className="h-10 w-10 rounded-full bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center text-white font-bold shadow-sm">
+                                    <li key={id} className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-slate-900/40 p-5 rounded-2xl border-l-4 border-l-green-400 border-y border-r border-y-white/5 border-r-white/5 hover:bg-slate-800/60 hover:shadow-lg transition-all group">
+                                        <div className="flex items-center gap-4">
+                                            <div className="h-10 w-10 rounded-full bg-slate-800 flex items-center justify-center text-slate-300 font-bold border border-white/10 group-hover:border-cyan-400/50 transition-colors">
                                                 {id + 1}
                                             </div>
-                                            <p className="text-sm font-medium text-slate-300 break-all">
-                                                {address[0]}
-                                            </p>
+                                            <div>
+                                                <p className="text-sm font-medium text-slate-300 break-all font-mono">
+                                                    {address[0]}
+                                                </p>
+                                                <p className="text-xs text-green-400 mt-1 flex items-center gap-1">
+                                                    <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse"></span>
+                                                    Access Granted
+                                                </p>
+                                            </div>
                                         </div>
                                         
                                         <button 
-                                            className="btn-danger whitespace-nowrap w-full sm:w-auto"
+                                            className="w-full sm:w-auto px-6 py-2.5 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 hover:border-red-500/50 rounded-xl text-red-400 transition-colors font-bold text-sm shadow-sm"
                                             onClick={() => removAccess(address[0])}
                                         >
                                             Revoke Access
