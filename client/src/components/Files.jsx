@@ -1,4 +1,6 @@
-import { useState } from "react"
+import React, { useState, Fragment } from "react"
+import { Menu, Transition } from '@headlessui/react'
+import { EllipsisVerticalIcon, LinkSlashIcon } from '@heroicons/react/24/outline'
 import toast from 'react-hot-toast';
 import axios from 'axios';
 import * as CryptoJSImport from "crypto-js";
@@ -379,7 +381,7 @@ export default function Files({ contract, account, shared, title }) {
                       <span className="text-sm text-slate-400">File Document</span>
                     </div>
                   </div>
-                  <p className="text-sm font-medium text-slate-300 truncate w-full mb-2" title={fileObj.url.substring(34)}>
+                  <p className="text-sm font-medium text-slate-300 truncate w-full mb-2 font-mono" title={fileObj.url.substring(34)}>
                     {fileObj.url.substring(34)}
                   </p>
                   {tags.length > 0 && (
@@ -395,47 +397,83 @@ export default function Files({ contract, account, shared, title }) {
                       ))}
                     </div>
                   )}
-                  <div className="w-full flex flex-col gap-2">
-                    <button 
-                      onClick={() => {
-                        const shareUrl = `${window.location.origin}/?hash=${encodeURIComponent(fileObj.url)}`;
-                        navigator.clipboard.writeText(shareUrl);
-                        toast.success('Shareable Link Copied!');
-                      }}
-                      className="w-full py-2.5 bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/20 hover:border-purple-500/50 rounded-lg text-purple-400 transition-colors font-semibold text-sm shadow-sm"
-                    >
-                      Copy Shareable Link
-                    </button>
+                  <div className="w-full flex gap-2 items-center">
                     <button 
                       onClick={() => decryptAndOpen(fileObj.url, fileObj.category.includes('#Stego'))}
-                      className="w-full py-2.5 bg-white/5 hover:bg-cyan-500/20 border border-white/10 hover:border-cyan-500/50 rounded-lg text-cyan-400 transition-colors font-semibold text-sm shadow-sm"
+                      className="flex-1 py-2.5 bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 rounded-xl text-cyan-400 transition-colors font-bold text-sm shadow-sm"
                     >
-                      Open File locally
+                      Open File
                     </button>
                     
-                    <button 
-                      onClick={() => handleHistoryClick(fileObj)}
-                      className="w-full py-2.5 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 hover:border-blue-500/50 rounded-lg text-blue-400 transition-colors font-semibold text-sm shadow-sm"
-                    >
-                      View Version History
-                    </button>
+                    <Menu as="div" className="relative inline-block text-left">
+                      <div>
+                        <Menu.Button className="flex items-center justify-center w-10 h-10 rounded-xl bg-white/5 border border-white/10 hover:border-white/30 text-slate-300 hover:text-white transition-all">
+                          <EllipsisVerticalIcon className="w-5 h-5" aria-hidden="true" />
+                        </Menu.Button>
+                      </div>
 
-                    {!shared && (
-                      <>
-                      <button 
-                        onClick={() => handleUpdateClick(fileObj.url)}
-                        className="w-full py-2.5 bg-yellow-500/10 hover:bg-yellow-500/20 border border-yellow-500/20 hover:border-yellow-500/50 rounded-lg text-yellow-400 transition-colors font-semibold text-sm shadow-sm"
+                      <Transition
+                        as={Fragment}
+                        enter="transition ease-out duration-100"
+                        enterFrom="transform opacity-0 scale-95"
+                        enterTo="transform opacity-100 scale-100"
+                        leave="transition ease-in duration-75"
+                        leaveFrom="transform opacity-100 scale-100"
+                        leaveTo="transform opacity-0 scale-95"
                       >
-                        Update File (New Version)
-                      </button>
-                      <button 
-                        onClick={() => deleteFile(fileObj.url)}
-                        className="w-full py-2.5 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 hover:border-red-500/50 rounded-lg text-red-400 transition-colors font-semibold text-sm shadow-sm"
-                      >
-                        Delete File
-                      </button>
-                      </>
-                    )}
+                        <Menu.Items className="absolute right-0 bottom-12 z-50 w-48 origin-bottom-right rounded-xl glass-panel bg-slate-900/95 py-1 shadow-2xl ring-1 ring-white/10 focus:outline-none">
+                          <Menu.Item>
+                            {({ active }) => (
+                              <button
+                                onClick={() => {
+                                  const shareUrl = `${window.location.origin}/?hash=${encodeURIComponent(fileObj.url)}`;
+                                  navigator.clipboard.writeText(shareUrl);
+                                  toast.success('Shareable Link Copied!');
+                                }}
+                                className={`${active ? 'bg-white/10 text-purple-400' : 'text-slate-300'} block w-full text-left px-4 py-2 text-sm font-medium transition-colors`}
+                              >
+                                Copy Share Link
+                              </button>
+                            )}
+                          </Menu.Item>
+                          <Menu.Item>
+                            {({ active }) => (
+                              <button
+                                onClick={() => handleHistoryClick(fileObj)}
+                                className={`${active ? 'bg-white/10 text-blue-400' : 'text-slate-300'} block w-full text-left px-4 py-2 text-sm font-medium transition-colors`}
+                              >
+                                Version History
+                              </button>
+                            )}
+                          </Menu.Item>
+                          
+                          {!shared && (
+                            <>
+                              <Menu.Item>
+                                {({ active }) => (
+                                  <button
+                                    onClick={() => handleUpdateClick(fileObj.url)}
+                                    className={`${active ? 'bg-white/10 text-yellow-400' : 'text-slate-300'} block w-full text-left px-4 py-2 text-sm font-medium transition-colors`}
+                                  >
+                                    Update (New Version)
+                                  </button>
+                                )}
+                              </Menu.Item>
+                              <Menu.Item>
+                                {({ active }) => (
+                                  <button
+                                    onClick={() => deleteFile(fileObj.url)}
+                                    className={`${active ? 'bg-red-500/20 text-red-400' : 'text-red-400'} block w-full text-left px-4 py-2 text-sm font-medium transition-colors`}
+                                  >
+                                    Delete File
+                                  </button>
+                                )}
+                              </Menu.Item>
+                            </>
+                          )}
+                        </Menu.Items>
+                      </Transition>
+                    </Menu>
                   </div>
                 </div>
               </li>
@@ -454,10 +492,12 @@ export default function Files({ contract, account, shared, title }) {
           )}
         </>
       ) : (
-        <div className="text-center py-12 border-2 border-dashed border-slate-700/50 rounded-xl bg-slate-800/20">
-          <svg className="mx-auto h-12 w-12 text-slate-500 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 002-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
-          <h3 className="text-sm font-medium text-slate-300">No files loaded</h3>
-          <p className="mt-1 text-sm text-slate-500">Click the button above to fetch the files.</p>
+        <div className="flex flex-col items-center justify-center py-20 bg-slate-900/20 rounded-2xl border border-white/5">
+          <LinkSlashIcon className="w-16 h-16 text-slate-600 mb-4" />
+          <h3 className="text-xl font-display font-bold text-slate-300">No Files Found</h3>
+          <p className="text-slate-500 max-w-md text-center mt-2">
+            There are no encrypted records linked to this address on the distributed ledger.
+          </p>
         </div>
       )}
 

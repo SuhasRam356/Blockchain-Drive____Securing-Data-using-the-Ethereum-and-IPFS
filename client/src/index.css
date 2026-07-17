@@ -12,10 +12,12 @@
 body {
   margin: 0;
   min-height: 100vh;
-  background: radial-gradient(circle at top right, #1a103c 0%, #0a0b10 50%),
-              radial-gradient(circle at bottom left, #0b1a2a 0%, #0a0b10 50%);
-  background-attachment: fixed;
   background-color: #0a0b10;
+  background-image: 
+    radial-gradient(circle at top right, rgba(26, 16, 60, 0.8) 0%, transparent 50%),
+    radial-gradient(circle at bottom left, rgba(11, 26, 42, 0.8) 0%, transparent 50%),
+    url("data:image/svg+xml,%3Csvg width='60' height='103.92' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M30 103.92L0 86.60L0 51.96L30 34.64L60 51.96L60 86.60ZM30 51.96L0 34.64L0 0L30 -17.32L60 0L60 34.64Z' fill='none' stroke='%23ffffff' stroke-opacity='0.02' stroke-width='1'/%3E%3C/svg%3E");
+  background-attachment: fixed;
 }
 
 /* Custom Scrollbar */

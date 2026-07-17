@@ -233,12 +233,17 @@ export default function Dashboard({ contract, account }) {
                 <p className="text-slate-400 text-center mt-10">No recent activity found.</p>
             ) : (
                 activityLog.map((log, index) => (
-                  <div key={`${log.id}-${index}`} className="flex items-start gap-4 p-4 rounded-xl bg-slate-800/40 border border-white/5 hover:bg-slate-700/50 hover:border-cyan-500/30 transition-all cursor-default">
+                  <div key={`${log.id}-${index}`} className={`flex items-start gap-4 p-4 rounded-xl bg-slate-800/40 border-l-4 border-y border-r border-y-white/5 border-r-white/5 hover:bg-slate-700/50 hover:shadow-lg transition-all cursor-default ${
+                    log.type === 'upload' ? 'border-l-cyan-400 hover:border-l-cyan-300' :
+                    log.type === 'delete' ? 'border-l-red-400 hover:border-l-red-300' :
+                    log.type === 'grant' ? 'border-l-green-400 hover:border-l-green-300' :
+                    'border-l-violet-400 hover:border-l-violet-300'
+                  }`}>
                     <div className={`p-2.5 rounded-lg shrink-0 ${
                        log.type === 'upload' ? 'bg-cyan-500/20 text-cyan-400' :
                        log.type === 'delete' ? 'bg-red-500/20 text-red-400' :
                        log.type === 'grant' ? 'bg-green-500/20 text-green-400' :
-                       'bg-orange-500/20 text-orange-400'
+                       'bg-violet-500/20 text-violet-400'
                     }`}>
                       {log.type === 'upload' && <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>}
                       {log.type === 'delete' && <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>}
