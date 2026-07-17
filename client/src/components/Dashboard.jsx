@@ -45,10 +45,19 @@ export default function Dashboard({ contract, account }) {
         });
         setFileStats(Object.keys(categories).map(key => ({ name: key, value: categories[key] })));
 
-        // 2. Fetch Storage Used
+        // 2. Fetch True Storage Used from IPFS
         try {
-          if (count > 0) {
-              setStorageUsedMB((count * 2.5).toFixed(2));
+          if (count > 0 && files.length > 0) {
+            const fetchPromises = files.map(file => {
+                const url = file.url.replace("ipfs.io", "cf-ipfs.com"); 
+                return axios.head(url).then(res => {
+                    return parseInt(res.headers['content-length'] || "0", 10);
+                }).catch(() => 2.5 * 1024 * 1024); // fallback to 2.5MB estimate if fetch fails
+            });
+            
+            const sizes = await Promise.all(fetchPromises);
+            const totalBytes = sizes.reduce((acc, curr) => acc + curr, 0);
+            setStorageUsedMB((totalBytes / (1024 * 1024)).toFixed(2));
           } else {
               setStorageUsedMB(0);
           }
@@ -155,7 +164,10 @@ export default function Dashboard({ contract, account }) {
 
         <div className="glass-panel p-6 flex flex-col justify-between relative overflow-hidden border-t-4 border-t-purple-400 shadow-xl hover:border-t-purple-300 transition-colors">
            <div className="absolute top-0 right-0 w-32 h-32 bg-purple-500/10 rounded-full blur-2xl -z-10 -mr-10 -mt-10"></div>
-           <p className="text-slate-400 font-medium text-sm">Total Storage Used</p>
+           <div className="flex justify-between items-center">
+             <p className="text-slate-400 font-medium text-sm">True Storage Used</p>
+             <span className="text-[10px] text-purple-400/70 border border-purple-500/30 px-2 py-0.5 rounded-full bg-purple-500/10" title="Dynamically fetched from IPFS nodes">Live from IPFS</span>
+           </div>
            <div className="flex items-end justify-between mt-2">
              <h3 className="text-4xl font-bold text-white">{loading ? '...' : storageUsedMB}<span className="text-xl text-slate-500 ml-1">MB</span></h3>
              <svg className="w-8 h-8 text-purple-400/50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"></path></svg>
