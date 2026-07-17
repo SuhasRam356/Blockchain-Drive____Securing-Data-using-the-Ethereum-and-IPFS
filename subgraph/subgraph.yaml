@@ -8,9 +8,9 @@ dataSources:
     name: UploadUpgradeableV7
     network: sepolia
     source:
-      address: "0xF4EC81E73Ab93E36960e7Df7D13dab79f55466d2" # Proxy address
+      address: "0xEE43D412F4f277c093b03e054a0b6B1DD860BEEd" # Proxy address
       abi: UploadUpgradeableV7
-      startBlock: 11243606
+      startBlock: 11292380
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.7

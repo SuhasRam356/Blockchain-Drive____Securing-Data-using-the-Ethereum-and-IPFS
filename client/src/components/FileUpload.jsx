@@ -207,9 +207,36 @@ const FileUpload = ({ contract, account, provider, updateTarget = null, onUpload
                 return `File securely added to your E2EE Vault!`;
             }
         } else {
-            // Batch flow (unchanged)
+            // V9 Batch Flow with Full E2EE
+            const batchUrls = [];
+            const batchFileHashes = [];
+            const batchSignatures = [];
+            const batchEncryptedAesKeys = [];
+            
+            toast("Encrypting batch files locally...", { icon: '🔒' });
+            const { getDeterministicKey, generateAESKey, encryptFile, encryptAESKey } = await import('../utils/encryption');
+            const secretKey = await getDeterministicKey(account, signer);
+            const pubKey = await contract.encryptionPublicKeys(account);
+            
+            const rawAesKeys = [];
+
             for (let i = 0; i < files.length; i++) {
-              let fileDataToUpload = files[i];
+              let rawFile = files[i];
+              const aesKey = generateAESKey();
+              rawAesKeys.push(aesKey);
+              
+              const ciphertext = await encryptFile(rawFile, aesKey);
+              
+              let fileDataToUpload;
+              if (useStego) {
+                  const { encodeStego } = await import('../utils/steganography');
+                  fileDataToUpload = await encodeStego(null, ciphertext);
+              } else {
+                  const blob = new Blob([ciphertext], { type: 'text/plain' });
+                  fileDataToUpload = new File([blob], rawFile.name + ".enc", { type: "text/plain" });
+              }
+              
+              const encryptedAesKeyHex = await encryptAESKey(aesKey, pubKey);
 
               finalFilesData.push(fileDataToUpload);
 
@@ -223,10 +250,14 @@ const FileUpload = ({ contract, account, provider, updateTarget = null, onUpload
                   setUploadProgress(percentCompleted);
               });
               const cid = uri.replace("ipfs://", "");
-              uploadedHashes.push(`https://ipfs.io/ipfs/${cid}`);
+              
+              batchUrls.push(`https://ipfs.io/ipfs/${cid}`);
+              batchFileHashes.push(ethers.constants.HashZero);
+              batchSignatures.push("0x");
+              batchEncryptedAesKeys.push(encryptedAesKeyHex);
             }
             
-            const combinedCategory = category;
+            const combinedCategory = useStego ? `${category}|#Stego` : category;
             
             if (receiverAddress.trim() !== "") {
                 let finalReceiver = receiverAddress.trim();
@@ -234,13 +265,31 @@ const FileUpload = ({ contract, account, provider, updateTarget = null, onUpload
                     const ensProvider = new ethers.providers.JsonRpcProvider("https://cloudflare-eth.com");
                     finalReceiver = await ensProvider.resolveName(finalReceiver);
                 }
-                const tx = await contract.sendFileToReceiverBatch(finalReceiver, uploadedHashes, combinedCategory);
-                await tx.wait();
-                return `${files.length} file(s) sent successfully to ${finalReceiver}`;
+                
+                const receiverPubKey = await contract.encryptionPublicKeys(finalReceiver);
+                if (!receiverPubKey || receiverPubKey === "") throw new Error("Receiver does not have E2EE configured.");
+                
+                toast("Encrypting keys for receiver...", { icon: '🔑' });
+                const receiverEncryptedKeys = [];
+                for (let key of rawAesKeys) {
+                    receiverEncryptedKeys.push(await encryptAESKey(key, receiverPubKey));
+                }
+                
+                if (contract.sendFileToReceiverBatchWithE2EE) {
+                    const tx = await contract.sendFileToReceiverBatchWithE2EE(finalReceiver, batchUrls, combinedCategory, batchFileHashes, batchSignatures, receiverEncryptedKeys);
+                    await tx.wait();
+                } else {
+                    throw new Error("Smart contract V9 is required for batch E2EE sharing.");
+                }
+                return `${files.length} file(s) E2EE locked and sent to ${finalReceiver}`;
             } else {
-                const tx = await contract.addBatch(uploadedHashes, combinedCategory);
-                await tx.wait();
-                return `${files.length} file(s) added successfully`;
+                if (contract.addBatchWithE2EE) {
+                    const tx = await contract.addBatchWithE2EE(batchUrls, combinedCategory, batchFileHashes, batchSignatures, batchEncryptedAesKeys);
+                    await tx.wait();
+                } else {
+                    throw new Error("Smart contract V9 is required for batch E2EE.");
+                }
+                return `${files.length} file(s) E2EE locked and added securely`;
             }
         }
       };
