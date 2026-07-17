@@ -115,23 +115,31 @@ export const encodeStego = (coverImageFile, secretText) => {
             reader.onerror = () => reject(new Error("Failed to read cover image"));
             reader.readAsDataURL(coverImageFile);
         } else {
-            // Dynamically calculate the minimum image size needed to hold the encrypted data
             const bitsNeeded = secretBytes.length * 8;
-            // For real images (which are smoother than mathematical noise), 
-            // we assume only ~10% of pixels will pass the high-frequency edge detection
-            const pixelsNeeded = bitsNeeded * 10 + 4000; 
-            const size = Math.max(400, Math.ceil(Math.sqrt(pixelsNeeded)));
             
-            const img = new Image();
-            img.crossOrigin = "Anonymous"; // Crucial for reading canvas data without security errors
-            img.src = `https://picsum.photos/${size}/${size}?random=${Date.now()}`;
+            // For real images (which are smooth), we need ~10x more pixels to find enough high-frequency edges
+            const pixelsNeededForReal = bitsNeeded * 10 + 4000; 
+            const sizeForReal = Math.ceil(Math.sqrt(pixelsNeededForReal));
             
-            img.onload = () => processImage(img);
-            img.onerror = () => {
-                console.warn("Failed to fetch random image from web, falling back to generated noise.");
-                // Fall back to noise generation by passing null
-                processImage(null, size);
-            };
+            // If the file is too large (requiring > 2000x2000 real image), it will crash the browser canvas 
+            // and Picsum APIs. Instead, we must use densely-packed generated noise which fits in a tiny canvas.
+            if (sizeForReal <= 2000) {
+                const size = Math.max(400, sizeForReal);
+                const img = new Image();
+                img.crossOrigin = "Anonymous"; 
+                img.src = `https://picsum.photos/${size}/${size}?random=${Date.now()}`;
+                
+                img.onload = () => processImage(img);
+                img.onerror = () => {
+                    console.warn("Failed to fetch random image, falling back to generated noise.");
+                    const sizeForNoise = Math.ceil(Math.sqrt(Math.ceil(bitsNeeded / 2) + 4000));
+                    processImage(null, Math.max(10, sizeForNoise));
+                };
+            } else {
+                // File is very large! Skip real images and generate dense mathematical noise directly
+                const sizeForNoise = Math.ceil(Math.sqrt(Math.ceil(bitsNeeded / 2) + 4000));
+                processImage(null, Math.max(10, sizeForNoise));
+            }
         }
     });
 };
