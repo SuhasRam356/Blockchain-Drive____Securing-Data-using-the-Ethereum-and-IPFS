@@ -89,6 +89,14 @@ export function handleFileUpdated(event: FileUpdatedEvent): void {
     
     store.remove("File", oldFileId)
   }
+
+  let activity = new ActivityEvent(event.transaction.hash.toHexString() + "-" + event.logIndex.toString())
+  activity.user = event.params.user
+  activity.type = "update"
+  activity.text = "Updated a file version"
+  activity.timestamp = event.block.timestamp
+  activity.txHash = event.transaction.hash
+  activity.save()
 }
 
 export function handleAccessGranted(event: AccessGrantedEvent): void {
@@ -131,4 +139,12 @@ export function handlePublicKeyPublished(event: PublicKeyPublishedEvent): void {
   let userMetric = getOrCreateUserMetric(event.params.user.toHexString())
   userMetric.publicKey = event.params.publicKey
   userMetric.save()
+
+  let activity = new ActivityEvent(event.transaction.hash.toHexString() + "-" + event.logIndex.toString())
+  activity.user = event.params.user
+  activity.type = "publish"
+  activity.text = "Published encryption public key"
+  activity.timestamp = event.block.timestamp
+  activity.txHash = event.transaction.hash
+  activity.save()
 }

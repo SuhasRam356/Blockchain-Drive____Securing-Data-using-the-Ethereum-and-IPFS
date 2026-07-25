@@ -329,18 +329,24 @@ export default function Dashboard({ contract, account }) {
                     log.type === 'upload' ? 'border-l-cyan-400 hover:border-l-cyan-300' :
                     log.type === 'delete' ? 'border-l-red-400 hover:border-l-red-300' :
                     log.type === 'grant' ? 'border-l-green-400 hover:border-l-green-300' :
-                    'border-l-violet-400 hover:border-l-violet-300'
+                    log.type === 'revoke' ? 'border-l-violet-400 hover:border-l-violet-300' :
+                    log.type === 'update' ? 'border-l-amber-400 hover:border-l-amber-300' :
+                    'border-l-pink-400 hover:border-l-pink-300'
                   }`}>
                     <div className={`p-2.5 rounded-lg shrink-0 ${
                        log.type === 'upload' ? 'bg-cyan-500/20 text-cyan-400' :
                        log.type === 'delete' ? 'bg-red-500/20 text-red-400' :
                        log.type === 'grant' ? 'bg-green-500/20 text-green-400' :
-                       'bg-violet-500/20 text-violet-400'
+                       log.type === 'revoke' ? 'bg-violet-500/20 text-violet-400' :
+                       log.type === 'update' ? 'bg-amber-500/20 text-amber-400' :
+                       'bg-pink-500/20 text-pink-400'
                     }`}>
                       {log.type === 'upload' && <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>}
                       {log.type === 'delete' && <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>}
                       {log.type === 'grant' && <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z"></path></svg>}
                       {log.type === 'revoke' && <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>}
+                      {log.type === 'update' && <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>}
+                      {log.type === 'publish' && <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4v-3.252a1 1 0 01.293-.707l8.964-8.964A6 6 0 1115 7z"></path></svg>}
                     </div>
                     <div className="flex-1 flex flex-col justify-center">
                       <p className="text-white font-medium text-[15px]">{log.text}</p>

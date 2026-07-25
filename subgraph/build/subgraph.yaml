@@ -8,9 +8,9 @@ dataSources:
     name: UploadUpgradeableV7
     network: sepolia
     source:
-      address: "0xF4EC81E73Ab93E36960e7Df7D13dab79f55466d2"
+      address: "0xEE43D412F4f277c093b03e054a0b6B1DD860BEEd"
       abi: UploadUpgradeableV7
-      startBlock: 11243606
+      startBlock: 11292380
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.7
@@ -28,6 +28,8 @@ dataSources:
           handler: handleFileAdded
         - event: FileDeleted(indexed address,string)
           handler: handleFileDeleted
+        - event: FileUpdated(indexed address,string,string)
+          handler: handleFileUpdated
         - event: AccessGranted(indexed address,indexed address,uint256)
           handler: handleAccessGranted
         - event: AccessRevoked(indexed address,indexed address)

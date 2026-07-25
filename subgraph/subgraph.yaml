@@ -28,6 +28,8 @@ dataSources:
           handler: handleFileAdded
         - event: FileDeleted(indexed address,string)
           handler: handleFileDeleted
+        - event: FileUpdated(indexed address,string,string)
+          handler: handleFileUpdated
         - event: AccessGranted(indexed address,indexed address,uint256)
           handler: handleAccessGranted
         - event: AccessRevoked(indexed address,indexed address)
