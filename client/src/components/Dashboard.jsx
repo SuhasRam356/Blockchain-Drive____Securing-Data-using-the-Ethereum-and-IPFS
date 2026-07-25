@@ -3,7 +3,7 @@ import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
 import { gql } from '@apollo/client';
 import { client } from '../main.jsx';
 import axios from 'axios';
-import jsPDF from 'jspdf';
+import { jsPDF } from 'jspdf';
 import 'jspdf-autotable';
 import toast from 'react-hot-toast';
 import { ethers } from 'ethers';
@@ -190,7 +190,7 @@ export default function Dashboard({ contract, account }) {
           ['Transaction Hash', log.txHash],
           ['Block Number', receipt.blockNumber.toString()],
           ['From Address', tx.from],
-          ['To Address (Contract)', tx.to],
+          ['To Address (Contract)', tx.to || 'N/A'],
           ['Gas Paid', ethers.utils.formatEther(receipt.gasUsed.mul(gasPrice)) + ' ETH'],
         ],
         columnStyles: {
