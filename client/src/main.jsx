@@ -36,7 +36,7 @@ const router = createBrowserRouter([
       ])
 
 export const client = new ApolloClient({
-  link: new HttpLink({ uri: 'https://api.studio.thegraph.com/query/1756388/blockchain-drive/v0.0.1' }),
+  link: new HttpLink({ uri: 'https://api.studio.thegraph.com/query/1756937/blockchain-drive/v0.0.1' }),
   cache: new InMemoryCache(),
 });
 
