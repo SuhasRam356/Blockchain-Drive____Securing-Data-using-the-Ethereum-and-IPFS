@@ -150,6 +150,7 @@ const FileUpload = ({ contract, account, provider, updateTarget = null, onUpload
             const cid = uri.replace("ipfs://", "");
             const ipfsGateway = import.meta.env.VITE_IPFS_GATEWAY || "https://ipfs.io/ipfs/";
             uploadedHashes.push(`${ipfsGateway}${cid}`);
+            try { localStorage.setItem(`ipfs_size_${cid}`, fileDataToUpload.size.toString()); } catch(e) {}
             
             const currentTags = useStego ? ['#Stego'] : [];
             if (isZkpValid) currentTags.push('#ZKP-Verified');
@@ -253,6 +254,7 @@ const FileUpload = ({ contract, account, provider, updateTarget = null, onUpload
               
               const ipfsGateway = import.meta.env.VITE_IPFS_GATEWAY || "https://ipfs.io/ipfs/";
               batchUrls.push(`${ipfsGateway}${cid}`);
+              try { localStorage.setItem(`ipfs_size_${cid}`, fileDataToUpload.size.toString()); } catch(e) {}
               batchFileHashes.push(ethers.constants.HashZero);
               batchSignatures.push("0x");
               batchEncryptedAesKeys.push(encryptedAesKeyHex);

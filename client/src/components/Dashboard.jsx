@@ -52,10 +52,20 @@ export default function Dashboard({ contract, account }) {
         try {
           if (count > 0 && files.length > 0) {
             const fetchPromises = files.map(file => {
+                const cid = file.url.replace("ipfs://", "").split('/').pop();
+                const cachedSize = localStorage.getItem(`ipfs_size_${cid}`);
+                if (cachedSize) {
+                    return Promise.resolve(parseInt(cachedSize, 10));
+                }
+
                 const ipfsHost = import.meta.env.VITE_IPFS_GATEWAY ? new URL(import.meta.env.VITE_IPFS_GATEWAY).host : "dweb.link";
                 const url = file.url.replace("ipfs.io", ipfsHost);
                 return axios.head(url).then(res => {
-                    return parseInt(res.headers['content-length'] || "0", 10);
+                    const size = parseInt(res.headers['content-length'] || "0", 10);
+                    if (size > 0) {
+                        try { localStorage.setItem(`ipfs_size_${cid}`, size.toString()); } catch(e) {}
+                    }
+                    return size;
                 }).catch(() => 0); // fallback to 0 bytes if fetch fails
             });
             
