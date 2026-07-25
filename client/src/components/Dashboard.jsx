@@ -52,11 +52,11 @@ export default function Dashboard({ contract, account }) {
         try {
           if (count > 0 && files.length > 0) {
             const fetchPromises = files.map(file => {
-                const ipfsHost = import.meta.env.VITE_IPFS_GATEWAY ? new URL(import.meta.env.VITE_IPFS_GATEWAY).host : "cf-ipfs.com";
+                const ipfsHost = import.meta.env.VITE_IPFS_GATEWAY ? new URL(import.meta.env.VITE_IPFS_GATEWAY).host : "dweb.link";
                 const url = file.url.replace("ipfs.io", ipfsHost);
                 return axios.head(url).then(res => {
                     return parseInt(res.headers['content-length'] || "0", 10);
-                }).catch(() => 2.5 * 1024 * 1024); // fallback to 2.5MB estimate if fetch fails
+                }).catch(() => 0); // fallback to 0 bytes if fetch fails
             });
             
             const sizes = await Promise.all(fetchPromises);
@@ -67,7 +67,7 @@ export default function Dashboard({ contract, account }) {
           }
         } catch (e) {
           console.error("Storage calculation error:", e);
-          setStorageUsedMB((count * 2.5).toFixed(2)); 
+          setStorageUsedMB(0); 
         }
 
         // 3. Fetch Events (Activity & Shares) via The Graph
