@@ -216,7 +216,7 @@ export default function Dashboard({ contract, account }) {
     <div className="w-full mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-10 animate-fadeIn">
       <h2 className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-white to-slate-400 mb-8">User Dashboard & Analytics</h2>
       
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         {/* KPI Cards */}
         <div className="glass-panel p-6 flex flex-col justify-between relative overflow-hidden border-t-4 border-t-cyan-400 shadow-xl hover:border-t-cyan-300 transition-colors">
            <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-500/10 rounded-full blur-2xl -z-10 -mr-10 -mt-10"></div>
@@ -237,7 +237,22 @@ export default function Dashboard({ contract, account }) {
              <h3 className="text-4xl font-bold text-white">{loading ? '...' : storageUsedMB}<span className="text-xl text-slate-500 ml-1">MB</span></h3>
              <svg className="w-8 h-8 text-purple-400/50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"></path></svg>
            </div>
-        </div>
+         </div>
+
+         {/* EVM Gas Savings Calculator */}
+         <div className="glass-panel p-6 flex flex-col justify-between relative overflow-hidden border-t-4 border-t-amber-400 shadow-xl hover:border-t-amber-300 transition-colors">
+           <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/10 rounded-full blur-2xl -z-10 -mr-10 -mt-10"></div>
+           <div className="flex justify-between items-center">
+             <p className="text-slate-400 font-medium text-sm">EVM Gas Saved</p>
+             <span className="text-[10px] text-amber-400/70 border border-amber-500/30 px-2 py-0.5 rounded-full bg-amber-500/10" title="Compared to on-chain native storage ($40k/MB)">Off-Chain IPFS</span>
+           </div>
+           <div className="flex items-end justify-between mt-2">
+             <h3 className="text-4xl font-bold text-white tracking-tighter">
+                {loading ? '...' : `$${(parseFloat(storageUsedMB || 0) * 40000).toLocaleString(undefined, { maximumFractionDigits: 0 })}`}
+             </h3>
+             <svg className="w-8 h-8 text-amber-400/50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+           </div>
+         </div>
 
         <div className="glass-panel p-6 flex flex-col justify-between relative overflow-hidden border-t-4 border-t-green-400 shadow-xl hover:border-t-green-300 transition-colors">
            <div className="absolute top-0 right-0 w-32 h-32 bg-green-500/10 rounded-full blur-2xl -z-10 -mr-10 -mt-10"></div>
