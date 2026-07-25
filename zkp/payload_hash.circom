@@ -16,5 +16,6 @@ template PayloadHash() {
     publicHash <== hasher.out;
 }
 
-// Instantiate the main component
-component main {public [secretKey]} = PayloadHash();
+// Instantiate the main component. The publicHash is automatically a public output.
+// The secretKey remains strictly private, making this a mathematically sound Commitment Scheme.
+component main = PayloadHash();

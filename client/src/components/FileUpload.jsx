@@ -107,8 +107,8 @@ const FileUpload = ({ contract, account, provider, updateTarget = null, onUpload
                  const { encryptAESKey } = await import('../utils/encryption');
                  encryptedAesKeyHex = await encryptAESKey(aesKey, pubKey);
 
-                 // Generate Zero-Knowledge Proof (ZKP) for the AES Key
-                 toast("Generating Zero-Knowledge Proof...", { icon: '🧙‍♂️' });
+                 // Generate Zero-Knowledge Proof (ZKP) for the AES Key (Conceptual Commitment Scheme)
+                 toast("Generating ZKP Commitment (Conceptual Demo)...", { icon: '🧙‍♂️' });
                  let zkpProofStr = "";
                  let isZkpValid = false;
                  try {
@@ -124,12 +124,12 @@ const FileUpload = ({ contract, account, provider, updateTarget = null, onUpload
                      
                      zkpProofStr = JSON.stringify(proof);
                      isZkpValid = true;
-                     toast.success("ZKP Cryptographically Verified!");
+                     toast.success("ZKP Commitment Cryptographically Verified!");
                  } catch (err) {
-                     console.warn("ZKP artifacts missing. Simulating proof generation...", err);
+                     console.warn("ZKP artifacts missing. Simulating conceptual commitment scheme...", err);
                      await new Promise(r => setTimeout(r, 2000));
                      isZkpValid = true;
-                     toast.success("Simulated ZKP Verification Successful!");
+                     toast.success("ZKP Commitment (Simulation) Successful!");
                  }
 
             // Signature verification removed - Blockchain inherently verifies sender via msg.sender
