@@ -4,7 +4,7 @@ import { gql } from '@apollo/client';
 import { client } from '../main.jsx';
 import axios from 'axios';
 import { jsPDF } from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 import toast from 'react-hot-toast';
 import { ethers } from 'ethers';
 
@@ -180,7 +180,7 @@ export default function Dashboard({ contract, account }) {
 
       const gasPrice = receipt.effectiveGasPrice || tx.gasPrice || ethers.BigNumber.from(0);
 
-      doc.autoTable({
+      autoTable(doc, {
         startY: 45,
         headStyles: { fillColor: [14, 165, 233] },
         head: [['Property', 'Value']],
