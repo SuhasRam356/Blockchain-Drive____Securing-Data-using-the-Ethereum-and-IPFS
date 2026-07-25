@@ -75,7 +75,7 @@ const Share = () => {
         const task = async () => {
             let finalAddress = address;
             if (finalAddress.endsWith(".eth")) {
-                const ensProvider = new ethers.providers.JsonRpcProvider("https://cloudflare-eth.com");
+                const ensProvider = new ethers.providers.JsonRpcProvider(import.meta.env.VITE_ENS_PROVIDER || "https://cloudflare-eth.com");
                 const resolved = await ensProvider.resolveName(finalAddress);
                 if (resolved) {
                     finalAddress = resolved;
@@ -111,7 +111,7 @@ const Share = () => {
                     const { getDeterministicKey, decryptAESKey, encryptAESKey } = await import('../utils/encryption');
                     
                     toast("Please sign to authenticate your session and share files.", { icon: '✍️' });
-                    const secretKey = await getDeterministicKey(account, signer);
+                    const secretKey = await getDeterministicKey(account, signer, contract.address);
 
                     const urls = [];
                     const encryptedKeysForReceiver = [];

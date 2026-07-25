@@ -101,3 +101,4 @@
 3. **Metadata Encryption:** Encrypt category tags and file metadata client-side before on-chain storage, using a private subgraph indexer for analytics.
 4. **Professional Audit:** Engage a third-party auditing firm (e.g., OpenZeppelin, Trail of Bits) for a production-grade audit before mainnet deployment.
 5. **Upgrade Safety CI:** Integrate `check-upgrade-safety.js` into CI/CD pipeline to automatically validate storage layout before every deployment.
+6. **Production Deployment Path:** The presence of `UploadUpgradeableV1` through `UploadUpgradeableV9` in this repository is intended **strictly for testing the upgrade path** and verifying storage layout compatibility. For a production mainnet deployment, the latest optimized version (`V9` or higher) should be deployed directly with a fresh UUPS proxy, rather than upgrading sequentially from V1.

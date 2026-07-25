@@ -1,7 +1,6 @@
 import { ethers } from 'ethers';
 import * as sigUtilImport from '@metamask/eth-sig-util';
 const sigUtil = sigUtilImport.default || sigUtilImport;
-import { contractAddress } from './constants';
 
 // Cache the deterministic key in memory so the user only signs once per session
 let cachedSecretKey = null;
@@ -10,13 +9,18 @@ let cachedSecretKey = null;
  * Derives a 32-byte secret key cryptographically using an Ethereum signature.
  * @param {string} address - User's wallet address 
  * @param {ethers.Signer} signer - Ethers signer object to request the signature
+ * @param {string} contractAddress - Deployed contract address to bind signature (prevents replay)
  * @returns {Promise<string>} The 32-byte secret key as a hex string (without '0x')
  */
-export const getDeterministicKey = async (address, signer) => {
+export const getDeterministicKey = async (address, signer, contractAddress) => {
     if (cachedSecretKey) return cachedSecretKey;
     
     if (!signer) {
         throw new Error("Signer is required to authenticate E2EE.");
+    }
+
+    if (!contractAddress) {
+        throw new Error("Contract address is required for domain separator binding.");
     }
     
     try {

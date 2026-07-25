@@ -69,11 +69,11 @@ const FileUpload = ({ contract, account, provider, updateTarget = null, onUpload
         if (files.length === 1) {
             let finalReceiver = receiverAddress.trim() === "" ? account : receiverAddress.trim();
             if (finalReceiver.endsWith(".eth")) {
-                const ensProvider = new ethers.providers.JsonRpcProvider("https://cloudflare-eth.com");
+                const ensProvider = new ethers.providers.JsonRpcProvider(import.meta.env.VITE_ENS_PROVIDER || "https://cloudflare-eth.com");
                 const resolved = await ensProvider.resolveName(finalReceiver);
                 if (resolved) finalReceiver = resolved;
                 else throw new Error(`Could not resolve ENS name: ${finalReceiver}`);
-            } else if (!ethers.utils.isAddress(finalReceiver)) {
+            } else if (!/^0x[a-fA-F0-9]{40}$/.test(finalReceiver) || !ethers.utils.isAddress(finalReceiver)) {
                 throw new Error(`Invalid Ethereum address: ${finalReceiver}`);
             }
 
@@ -148,7 +148,8 @@ const FileUpload = ({ contract, account, provider, updateTarget = null, onUpload
                 setUploadProgress(percentCompleted);
             });
             const cid = uri.replace("ipfs://", "");
-            uploadedHashes.push(`https://ipfs.io/ipfs/${cid}`);
+            const ipfsGateway = import.meta.env.VITE_IPFS_GATEWAY || "https://ipfs.io/ipfs/";
+            uploadedHashes.push(`${ipfsGateway}${cid}`);
             
             const currentTags = useStego ? ['#Stego'] : [];
             if (isZkpValid) currentTags.push('#ZKP-Verified');
@@ -214,7 +215,7 @@ const FileUpload = ({ contract, account, provider, updateTarget = null, onUpload
             
             toast("Encrypting batch files locally...", { icon: '🔒' });
             const { getDeterministicKey, generateAESKey, encryptFile, encryptAESKey } = await import('../utils/encryption');
-            const secretKey = await getDeterministicKey(account, signer);
+            const secretKey = await getDeterministicKey(account, signer, contract.address);
             const pubKey = await contract.encryptionPublicKeys(account);
             
             const rawAesKeys = [];
@@ -250,7 +251,8 @@ const FileUpload = ({ contract, account, provider, updateTarget = null, onUpload
               });
               const cid = uri.replace("ipfs://", "");
               
-              batchUrls.push(`https://ipfs.io/ipfs/${cid}`);
+              const ipfsGateway = import.meta.env.VITE_IPFS_GATEWAY || "https://ipfs.io/ipfs/";
+              batchUrls.push(`${ipfsGateway}${cid}`);
               batchFileHashes.push(ethers.constants.HashZero);
               batchSignatures.push("0x");
               batchEncryptedAesKeys.push(encryptedAesKeyHex);
@@ -261,8 +263,10 @@ const FileUpload = ({ contract, account, provider, updateTarget = null, onUpload
             if (receiverAddress.trim() !== "") {
                 let finalReceiver = receiverAddress.trim();
                 if (finalReceiver.endsWith(".eth")) {
-                    const ensProvider = new ethers.providers.JsonRpcProvider("https://cloudflare-eth.com");
+                    const ensProvider = new ethers.providers.JsonRpcProvider(import.meta.env.VITE_ENS_PROVIDER || "https://cloudflare-eth.com");
                     finalReceiver = await ensProvider.resolveName(finalReceiver);
+                } else if (!/^0x[a-fA-F0-9]{40}$/.test(finalReceiver) || !ethers.utils.isAddress(finalReceiver)) {
+                    throw new Error(`Invalid Ethereum address: ${finalReceiver}`);
                 }
                 
                 const receiverPubKey = await contract.encryptionPublicKeys(finalReceiver);

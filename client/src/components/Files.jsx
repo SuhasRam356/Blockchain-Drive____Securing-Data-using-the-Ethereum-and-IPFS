@@ -86,7 +86,7 @@ export default function Files({ contract, account, shared, title }) {
       } else {
         let finalAddress = otherAddress.trim();
         if (finalAddress.endsWith(".eth")) {
-            const ensProvider = new ethers.providers.JsonRpcProvider("https://cloudflare-eth.com");
+            const ensProvider = new ethers.providers.JsonRpcProvider(import.meta.env.VITE_ENS_PROVIDER || "https://cloudflare-eth.com");
             const resolved = await ensProvider.resolveName(finalAddress);
             if (resolved) {
                 finalAddress = resolved;
@@ -107,7 +107,7 @@ export default function Files({ contract, account, shared, title }) {
     if (shared) {
       let finalAddress = otherAddress.trim();
       if (finalAddress.endsWith(".eth")) {
-          const ensProvider = new ethers.providers.JsonRpcProvider("https://cloudflare-eth.com");
+          const ensProvider = new ethers.providers.JsonRpcProvider(import.meta.env.VITE_ENS_PROVIDER || "https://cloudflare-eth.com");
           address = await ensProvider.resolveName(finalAddress);
       } else {
           address = finalAddress;
@@ -142,7 +142,8 @@ export default function Files({ contract, account, shared, title }) {
 
   const verifyIntegrity = async (fileObj) => {
     const task = async () => {
-      const url = fileObj.url.replace("cf-ipfs.com", "ipfs.io");
+      const ipfsHost = import.meta.env.VITE_IPFS_GATEWAY ? new URL(import.meta.env.VITE_IPFS_GATEWAY).host : "ipfs.io";
+      const url = fileObj.url.replace("cf-ipfs.com", ipfsHost);
       const res = await fetch(url);
       if (!res.ok) throw new Error("Failed to download file from IPFS");
       const arrayBuffer = await res.arrayBuffer();
@@ -176,7 +177,7 @@ export default function Files({ contract, account, shared, title }) {
         if (shared === '1' && otherAddress) {
             fileOwner = otherAddress.trim();
             if (fileOwner.endsWith(".eth")) {
-                const ensProvider = new ethers.providers.JsonRpcProvider("https://cloudflare-eth.com");
+                const ensProvider = new ethers.providers.JsonRpcProvider(import.meta.env.VITE_ENS_PROVIDER || "https://cloudflare-eth.com");
                 fileOwner = (await ensProvider.resolveName(fileOwner)) || fileOwner;
             }
         }
@@ -201,8 +202,8 @@ export default function Files({ contract, account, shared, title }) {
              const provider = new ethers.providers.Web3Provider(window.ethereum);
              const signer = provider.getSigner();
              const { getDeterministicKey, decryptAESKey } = await import('../utils/encryption');
-             
-             const secretKey = await getDeterministicKey(account, signer);
+             toast("Please sign to authenticate your session and decrypt this file.", { icon: '✍️' });
+             const secretKey = await getDeterministicKey(account, signer, contract.address);
              aesKeyToUse = await decryptAESKey(encryptedAesKeyHex, secretKey);
         } else if (!encryptedAesKeyHex || encryptedAesKeyHex === "") {
              // Unencrypted file
@@ -273,7 +274,7 @@ export default function Files({ contract, account, shared, title }) {
       if (shared === '1' && otherAddress) {
           fileOwner = otherAddress.trim();
           if (fileOwner.endsWith(".eth")) {
-              const ensProvider = new ethers.providers.JsonRpcProvider("https://cloudflare-eth.com");
+              const ensProvider = new ethers.providers.JsonRpcProvider(import.meta.env.VITE_ENS_PROVIDER || "https://cloudflare-eth.com");
               fileOwner = (await ensProvider.resolveName(fileOwner)) || fileOwner;
           }
       }
@@ -391,7 +392,7 @@ export default function Files({ contract, account, shared, title }) {
                   <div className="w-full h-48 bg-slate-800 rounded-lg overflow-hidden relative mb-4 flex items-center justify-center group">
                     <img 
                       className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" 
-                      src={fileObj.url.replace("cf-ipfs.com", "ipfs.io")} 
+                      src={fileObj.url.replace("cf-ipfs.com", import.meta.env.VITE_IPFS_GATEWAY ? new URL(import.meta.env.VITE_IPFS_GATEWAY).host : "ipfs.io")} 
                       alt="File preview"
                       onError={(e) => {
                         e.target.style.display = 'none';

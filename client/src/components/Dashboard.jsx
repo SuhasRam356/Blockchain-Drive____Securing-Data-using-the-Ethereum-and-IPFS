@@ -52,7 +52,8 @@ export default function Dashboard({ contract, account }) {
         try {
           if (count > 0 && files.length > 0) {
             const fetchPromises = files.map(file => {
-                const url = file.url.replace("ipfs.io", "cf-ipfs.com"); 
+                const ipfsHost = import.meta.env.VITE_IPFS_GATEWAY ? new URL(import.meta.env.VITE_IPFS_GATEWAY).host : "cf-ipfs.com";
+                const url = file.url.replace("ipfs.io", ipfsHost);
                 return axios.head(url).then(res => {
                     return parseInt(res.headers['content-length'] || "0", 10);
                 }).catch(() => 2.5 * 1024 * 1024); // fallback to 2.5MB estimate if fetch fails

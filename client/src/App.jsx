@@ -64,7 +64,7 @@ function App() {
               
               if (!currentPubKey || currentPubKey === "" || !isMigrated) {
                   const { getDeterministicKey, derivePublicKey } = await import('./utils/encryption');
-                  const secretKey = await getDeterministicKey(address, signer);
+                  const secretKey = await getDeterministicKey(address, signer, contract.address);
                   const pubKey = derivePublicKey(secretKey);
                   
                   if (currentPubKey !== pubKey) {
