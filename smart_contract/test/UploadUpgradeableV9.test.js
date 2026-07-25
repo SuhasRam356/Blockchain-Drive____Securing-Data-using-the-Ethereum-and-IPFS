@@ -487,4 +487,77 @@ describe("UploadUpgradeableV9", function () {
             ).to.be.revertedWithCustomError(upload, "OwnableUnauthorizedAccount");
         });
     });
+
+    // =========================================================
+    // SECTION 11: O(1) Ownership After Delete (Stale-File Guard)
+    // =========================================================
+    describe("11. Stale-File Sharing Guard (Fix #3)", function () {
+        const HASH_1 = "0x" + "1".repeat(64);
+
+        it("should PREVENT sharing keys for a deleted file", async function () {
+            await upload.connect(alice).addWithE2EE("ipfs://f1", "Docs", HASH_1, "0x1111", "Key1");
+
+            // Alice deletes the file
+            await upload.connect(alice).deleteFile("ipfs://f1");
+
+            // Alice tries to share keys for the deleted file → should revert
+            await expect(
+                upload.connect(alice).shareFileKeysForUser(bob.address, ["ipfs://f1"], ["SharedKey"])
+            ).to.be.revertedWith("Not owner of file");
+        });
+
+        it("should PREVENT sharing keys for a file that was never uploaded", async function () {
+            await expect(
+                upload.connect(alice).shareFileKeysForUser(bob.address, ["ipfs://ghost"], ["Key"])
+            ).to.be.revertedWith("Not owner of file");
+        });
+
+        it("should allow sharing keys for an updated file (new URL)", async function () {
+            await upload.connect(alice).addWithE2EE("ipfs://v1", "Docs", HASH_1, "0x1111", "Key_V1");
+            await upload.connect(alice).updateFile("ipfs://v1", "ipfs://v2", HASH_A, SIG_A, "Key_V2");
+
+            // Old URL ownership should be revoked
+            await expect(
+                upload.connect(alice).shareFileKeysForUser(bob.address, ["ipfs://v1"], ["OldKey"])
+            ).to.be.revertedWith("Not owner of file");
+
+            // New URL ownership should be active
+            await upload.connect(alice).shareFileKeysForUser(bob.address, ["ipfs://v2"], ["NewKey"]);
+            expect(await upload.getSharedEncryptedAESKey(alice.address, "ipfs://v2", bob.address)).to.equal("NewKey");
+        });
+    });
+
+    // =========================================================
+    // SECTION 12: O(1) Ownership Consistency
+    // =========================================================
+    describe("12. O(1) Ownership Consistency", function () {
+        it("should maintain ownership for all add variants", async function () {
+            // add()
+            await upload.connect(alice).add("ipfs://a1", "Cat");
+            // addWithSignature()
+            await upload.connect(alice).addWithSignature("ipfs://a2", "Cat", HASH_A, SIG_A);
+            // addWithE2EE()
+            await upload.connect(alice).addWithE2EE("ipfs://a3", "Cat", HASH_B, SIG_B, "Key");
+
+            // All should be owned
+            // Verify by trying to share keys (only works if _ownsFile returns true)
+            await upload.connect(alice).shareFileKeysForUser(bob.address, ["ipfs://a1"], ["K1"]);
+            await upload.connect(alice).shareFileKeysForUser(bob.address, ["ipfs://a2"], ["K2"]);
+            await upload.connect(alice).shareFileKeysForUser(bob.address, ["ipfs://a3"], ["K3"]);
+        });
+
+        it("should maintain ownership for receiver-sent files", async function () {
+            await upload.connect(alice).sendFileToReceiverWithE2EE(
+                bob.address, "ipfs://sent1", "Cat", HASH_A, SIG_A, "Key"
+            );
+
+            // Bob (the receiver) should own it
+            await upload.connect(bob).shareFileKeysForUser(charlie.address, ["ipfs://sent1"], ["SharedKey"]);
+
+            // Alice (the sender) should NOT own it
+            await expect(
+                upload.connect(alice).shareFileKeysForUser(charlie.address, ["ipfs://sent1"], ["Hack"])
+            ).to.be.revertedWith("Not owner of file");
+        });
+    });
 });

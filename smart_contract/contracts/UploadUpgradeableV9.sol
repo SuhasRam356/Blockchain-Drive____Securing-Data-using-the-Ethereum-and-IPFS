@@ -74,6 +74,11 @@ contract UploadUpgradeableV9 is Initializable, OwnableUpgradeable, PausableUpgra
     mapping(address => mapping(string => Version[])) private _userFileVersions;
     mapping(address => mapping(string => mapping(address => string))) public userSharedEncryptedAESKeys;
 
+    // =======================================================
+    // --- V10 STORAGE ADDITIONS (O(1) File Ownership Index) ---
+    // =======================================================
+    mapping(address => mapping(bytes32 => bool)) private fileOwnership;
+
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
         _disableInitializers();
@@ -101,6 +106,7 @@ contract UploadUpgradeableV9 is Initializable, OwnableUpgradeable, PausableUpgra
                 category: category,
                 sender: msg.sender
             }));
+            fileOwnership[msg.sender][keccak256(bytes(urls[i]))] = true;
             
             if (bytes(aesKeys[i]).length > 0) {
                 userEncryptedAESKeys[msg.sender][urls[i]] = aesKeys[i];
@@ -133,6 +139,7 @@ contract UploadUpgradeableV9 is Initializable, OwnableUpgradeable, PausableUpgra
                 category: category,
                 sender: msg.sender
             }));
+            fileOwnership[receiver][keccak256(bytes(urls[i]))] = true;
             
             if (bytes(aesKeys[i]).length > 0) {
                 userEncryptedAESKeys[receiver][urls[i]] = aesKeys[i];
@@ -161,15 +168,9 @@ contract UploadUpgradeableV9 is Initializable, OwnableUpgradeable, PausableUpgra
         _unpause();
     }
 
-    // --- V8 HELPER FUNCTIONS ---
+    // --- V10 O(1) HELPER FUNCTIONS ---
     function _ownsFile(address owner, string memory url) internal view returns (bool) {
-        FileInfo[] storage files = value[owner];
-        for (uint i = 0; i < files.length; i++) {
-            if (keccak256(bytes(files[i].url)) == keccak256(bytes(url))) {
-                return true;
-            }
-        }
-        return false;
+        return fileOwnership[owner][keccak256(bytes(url))];
     }
 
     // --- V8 COMPATIBILITY GETTERS ---
@@ -250,6 +251,10 @@ contract UploadUpgradeableV9 is Initializable, OwnableUpgradeable, PausableUpgra
         }
         require(found, "File not found");
 
+        // Swap ownership index from old URL to new URL
+        fileOwnership[msg.sender][keccak256(bytes(currentUrl))] = false;
+        fileOwnership[msg.sender][keccak256(bytes(newUrl))] = true;
+
         string memory origUrl = userOriginalUrls[msg.sender][currentUrl];
         if (bytes(origUrl).length == 0) {
             origUrl = originalUrls[currentUrl]; // Check legacy
@@ -301,6 +306,7 @@ contract UploadUpgradeableV9 is Initializable, OwnableUpgradeable, PausableUpgra
             category: category,
             sender: msg.sender
         }));
+        fileOwnership[msg.sender][keccak256(bytes(url))] = true;
         
         userFileHashes[msg.sender][url] = fileHash;
         userFileSignatures[msg.sender][url] = signature;
@@ -343,6 +349,7 @@ contract UploadUpgradeableV9 is Initializable, OwnableUpgradeable, PausableUpgra
             category: category,
             sender: msg.sender
         }));
+        fileOwnership[receiver][keccak256(bytes(url))] = true;
         
         userFileHashes[receiver][url] = fileHash;
         userFileSignatures[receiver][url] = signature;
@@ -358,6 +365,7 @@ contract UploadUpgradeableV9 is Initializable, OwnableUpgradeable, PausableUpgra
             category: category,
             sender: msg.sender
         }));
+        fileOwnership[msg.sender][keccak256(bytes(url))] = true;
         
         userFileHashes[msg.sender][url] = fileHash;
         userFileSignatures[msg.sender][url] = signature;
@@ -374,6 +382,7 @@ contract UploadUpgradeableV9 is Initializable, OwnableUpgradeable, PausableUpgra
             category: category,
             sender: msg.sender
         }));
+        fileOwnership[receiver][keccak256(bytes(url))] = true;
         
         userFileHashes[receiver][url] = fileHash;
         userFileSignatures[receiver][url] = signature;
@@ -388,6 +397,7 @@ contract UploadUpgradeableV9 is Initializable, OwnableUpgradeable, PausableUpgra
             category: category,
             sender: msg.sender
         }));
+        fileOwnership[msg.sender][keccak256(bytes(url))] = true;
         emit FileAdded(msg.sender, msg.sender, url, category);
     }
 
@@ -398,6 +408,7 @@ contract UploadUpgradeableV9 is Initializable, OwnableUpgradeable, PausableUpgra
                 category: category,
                 sender: msg.sender
             }));
+            fileOwnership[msg.sender][keccak256(bytes(urls[i]))] = true;
             emit FileAdded(msg.sender, msg.sender, urls[i], category);
         }
     }
@@ -410,6 +421,7 @@ contract UploadUpgradeableV9 is Initializable, OwnableUpgradeable, PausableUpgra
             category: category,
             sender: msg.sender
         }));
+        fileOwnership[receiver][keccak256(bytes(url))] = true;
         emit FileAdded(receiver, msg.sender, url, category);
     }
 
@@ -422,6 +434,7 @@ contract UploadUpgradeableV9 is Initializable, OwnableUpgradeable, PausableUpgra
                 category: category,
                 sender: msg.sender
             }));
+            fileOwnership[receiver][keccak256(bytes(urls[i]))] = true;
             emit FileAdded(receiver, msg.sender, urls[i], category);
         }
     }
@@ -525,10 +538,12 @@ contract UploadUpgradeableV9 is Initializable, OwnableUpgradeable, PausableUpgra
 
     function deleteFile(string calldata url) external whenNotPaused {
         FileInfo[] storage userFiles = value[msg.sender];
+        bytes32 urlHash = keccak256(bytes(url));
         for (uint i = 0; i < userFiles.length; i++) {
-            if (keccak256(bytes(userFiles[i].url)) == keccak256(bytes(url))) {
+            if (keccak256(bytes(userFiles[i].url)) == urlHash) {
                 userFiles[i] = userFiles[userFiles.length - 1];
                 userFiles.pop();
+                fileOwnership[msg.sender][urlHash] = false;
                 
                 emit FileDeleted(msg.sender, url);
                 break;

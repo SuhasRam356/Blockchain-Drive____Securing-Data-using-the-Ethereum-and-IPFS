@@ -19,7 +19,8 @@
 | T6 | Denial of Service (Pause Abuse)      | Medium   | ✅ Mitigated       |
 | T7 | Self-Referencing Exploits            | Low      | ✅ Mitigated       |
 | T8 | Storage Layout Collision on Upgrade  | High     | ⚠️ Acknowledged    |
-| T9 | Gas Griefing (Unbounded Loops)       | Medium   | ⚠️ Acknowledged    |
+| T9 | Gas Griefing (Unbounded Loops)       | Medium   | ✅ Partially Mitigated (V10) |
+| T10| On-Chain Metadata Visibility         | Medium   | ⚠️ Acknowledged (By Design) |
 
 ---
 
@@ -63,9 +64,13 @@
 **Description:** UploadUpgradeableV9 carries deprecated storage slots from V2–V7 (e.g., `fileSignatures`, `encryptedAESKeys`). These are intentionally preserved to maintain storage layout compatibility with the UUPS proxy pattern. Removing or reordering them would corrupt live data.  
 **Status:** This is a known trade-off of the UUPS upgradeable pattern. The deprecated mappings are clearly marked with `// DEPRECATED` comments. Future work: formal verification with Certora or the K-Framework would provide mathematical guarantees that no storage slot overlaps exist.
 
-### T9: Gas Griefing — Unbounded Loops (Medium → Acknowledged)
-**Description:** Functions like `_ownsFile()`, `deleteFile()`, and `updateFile()` iterate over a user's entire file array. For users with thousands of files, these could hit block gas limits.  
-**Status:** Mitigated in practice by pagination (`displayPage`) and the expectation that individual users will not store thousands of files in a conference demo. Future work: indexing files by URL hash would provide O(1) lookups.
+### T9: Gas Griefing — Unbounded Loops (Medium → Partially Mitigated in V10)
+**Description:** Functions like `deleteFile()` and `updateFile()` still iterate over a user's file array for the swap-and-pop deletion pattern. However, the critical `_ownsFile()` function was rewritten in V10 to use a `mapping(address => mapping(bytes32 => bool))` lookup, reducing its gas cost from O(n) to O(1). This eliminates the primary DoS vector where an attacker could force expensive ownership checks.  
+**Status:** The `deleteFile()` loop remains as an unavoidable consequence of the array-based file storage model. Mitigated in practice by the expectation that individual users will not store thousands of files. Future work: a hash-indexed file registry would provide O(1) deletions.
+
+### T10: On-Chain Metadata Visibility (Medium → Acknowledged by Design)
+**Description:** File metadata fields (`category`, `sender` address, `url` (IPFS CID), and `timestamp`) are stored on-chain in plaintext and indexed by The Graph subgraph. While the actual file **contents** are AES-256-GCM encrypted end-to-end and mathematically unreadable without the user's private key, the metadata remains visible to anyone inspecting the blockchain.  
+**Status:** This is an intentional architectural trade-off. On-chain metadata visibility is required to enable the Dashboard analytics (file categories, activity log, gas tracking) powered by The Graph indexer. Encrypting metadata would require a private indexing layer, which is documented as future work. For the current conference demo, file privacy (E2EE content encryption) is the primary security guarantee, and metadata visibility is an accepted limitation.
 
 ---
 
@@ -83,12 +88,16 @@
 | 8. Emergency Pausability           | 3     | ✅ PASS |
 | 9. Pagination                      | 3     | ✅ PASS |
 | 10. UUPS Upgrade Authorization     | 1     | ✅ PASS |
-| **TOTAL**                          | **45**| **✅ ALL PASS** |
+| 11. Stale-File Sharing Guard       | 3     | ✅ PASS |
+| 12. O(1) Ownership Consistency     | 2     | ✅ PASS |
+| **TOTAL**                          | **50**| **✅ ALL PASS** |
 
 ---
 
 ## 4. Future Work
 
 1. **Formal Verification:** Apply Certora or K-Framework to mathematically prove storage-layout safety across all upgrade versions.
-2. **O(1) File Lookups:** Replace linear file array scans with `mapping(address => mapping(bytes32 => uint256))` for URL-hash-indexed O(1) lookups.
-3. **Professional Audit:** Engage a third-party auditing firm (e.g., OpenZeppelin, Trail of Bits) for a production-grade audit before mainnet deployment.
+2. **O(1) File Deletions:** Replace the file array with a hash-indexed registry for O(1) deletions and lookups.
+3. **Metadata Encryption:** Encrypt category tags and file metadata client-side before on-chain storage, using a private subgraph indexer for analytics.
+4. **Professional Audit:** Engage a third-party auditing firm (e.g., OpenZeppelin, Trail of Bits) for a production-grade audit before mainnet deployment.
+5. **Upgrade Safety CI:** Integrate `check-upgrade-safety.js` into CI/CD pipeline to automatically validate storage layout before every deployment.
