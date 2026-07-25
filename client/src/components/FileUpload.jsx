@@ -65,6 +65,7 @@ const FileUpload = ({ contract, account, provider, updateTarget = null, onUpload
         let finalFilesData = [];
         let singleFileSignature = null;
         let singleFileHashHex = null;
+        const signer = provider.getSigner();
 
         if (files.length === 1) {
             let finalReceiver = receiverAddress.trim() === "" ? account : receiverAddress.trim();
