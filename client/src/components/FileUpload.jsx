@@ -126,10 +126,9 @@ const FileUpload = ({ contract, account, provider, updateTarget = null, onUpload
                      isZkpValid = true;
                      toast.success("ZKP Commitment Cryptographically Verified!");
                  } catch (err) {
-                     console.warn("ZKP artifacts missing. Simulating conceptual commitment scheme...", err);
-                     await new Promise(r => setTimeout(r, 2000));
-                     isZkpValid = true;
-                     toast.success("ZKP Commitment (Simulation) Successful!");
+                     console.warn("ZKP artifacts missing or not configured:", err.message);
+                     isZkpValid = false;
+                     toast("ZKP artifacts not configured (/zkp/payload_hash.wasm missing). Continuing upload.", { icon: 'ℹ️' });
                  }
 
             // Signature verification removed - Blockchain inherently verifies sender via msg.sender

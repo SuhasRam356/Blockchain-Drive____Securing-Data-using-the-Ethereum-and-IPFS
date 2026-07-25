@@ -51,30 +51,41 @@ function App() {
         setContract(contract);
         setProvider(provider)
 
-        // E2EE PKI Setup
-        try {
-            const currentPubKey = await contract.encryptionPublicKeys(address);
-            const isMigrated = localStorage.getItem('migratedToSepolia_' + address);
-            
-            if (!currentPubKey || currentPubKey === "" || !isMigrated) {
-                const { getDeterministicKey, derivePublicKey } = await import('./utils/encryption');
-                const secretKey = await getDeterministicKey(address, signer);
-                const pubKey = derivePublicKey(secretKey);
-                
-                if (currentPubKey !== pubKey) {
-                    const nonce = await contract.encryptionKeyNonces(address);
-                    const message = "Confirm E2EE Public Key: " + pubKey + " Nonce: " + nonce.toString();
-                    const signature = await signer.signMessage(message);
-                    const tx = await contract.setEncryptionPublicKey(pubKey, signature);
-                    await tx.wait();
-                }
-                localStorage.setItem('migratedToSepolia_' + address, 'true');
-            }
-        } catch (e) {
-            console.error("Failed to setup E2EE", e);
-            import('react-hot-toast').then(toast => {
-                toast.default.error("E2EE Setup Error: " + (e.reason || e.message));
-            });
+        // Contract Version Check & Fallback
+        const { detectContractVersion } = await import('./utils/contractVersion');
+        const ver = await detectContractVersion(contract);
+        console.log(`Detected Smart Contract Version: V${ver}`);
+
+        // E2EE PKI Setup (Requires V7+)
+        if (ver >= 7 && contract.setEncryptionPublicKey) {
+          try {
+              const currentPubKey = await contract.encryptionPublicKeys(address);
+              const isMigrated = localStorage.getItem('migratedToSepolia_' + address);
+              
+              if (!currentPubKey || currentPubKey === "" || !isMigrated) {
+                  const { getDeterministicKey, derivePublicKey } = await import('./utils/encryption');
+                  const secretKey = await getDeterministicKey(address, signer);
+                  const pubKey = derivePublicKey(secretKey);
+                  
+                  if (currentPubKey !== pubKey) {
+                      const nonce = await contract.encryptionKeyNonces(address);
+                      const message = "Confirm E2EE Public Key: " + pubKey + " Nonce: " + nonce.toString();
+                      const signature = await signer.signMessage(message);
+                      const tx = await contract.setEncryptionPublicKey(pubKey, signature);
+                      await tx.wait();
+                  }
+                  localStorage.setItem('migratedToSepolia_' + address, 'true');
+              }
+          } catch (e) {
+              console.error("Failed to setup E2EE", e);
+              import('react-hot-toast').then(toast => {
+                  toast.default.error("E2EE Setup Error: " + (e.reason || e.message));
+              });
+          }
+        } else if (ver < 7) {
+          import('react-hot-toast').then(toast => {
+            toast.default.error(`Connected contract is V${ver}. E2EE PKI disabled. Please upgrade contract to V9.`);
+          });
         }
       }
       else{
