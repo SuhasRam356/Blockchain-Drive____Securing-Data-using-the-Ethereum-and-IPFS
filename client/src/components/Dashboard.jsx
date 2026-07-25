@@ -3,7 +3,10 @@ import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
 import { gql } from '@apollo/client';
 import { client } from '../main.jsx';
 import axios from 'axios';
-
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
+import toast from 'react-hot-toast';
+import { ethers } from 'ethers';
 
 export default function Dashboard({ contract, account }) {
   const [storageUsedMB, setStorageUsedMB] = useState(0);
@@ -147,6 +150,68 @@ export default function Dashboard({ contract, account }) {
 
   if (!account) return null;
 
+  const downloadTransactionPDF = async (log) => {
+    const toastId = toast.loading('Fetching transaction details from Ethereum node...');
+    try {
+      const provider = contract.provider || new ethers.providers.JsonRpcProvider("https://rpc.sepolia.org");
+      const receipt = await provider.getTransactionReceipt(log.txHash);
+      const tx = await provider.getTransaction(log.txHash);
+
+      if (!receipt || !tx) {
+         toast.error("Transaction is still pending or RPC failed.", { id: toastId });
+         return;
+      }
+
+      toast.loading('Generating cryptographic receipt...', { id: toastId });
+
+      const doc = new jsPDF();
+      
+      doc.setFontSize(22);
+      doc.setTextColor(14, 165, 233); 
+      doc.text("Blockchain Drive", 14, 20);
+      
+      doc.setFontSize(16);
+      doc.setTextColor(50, 50, 50);
+      doc.text("Transaction Receipt", 14, 30);
+
+      doc.setFontSize(10);
+      doc.setTextColor(100, 100, 100);
+      doc.text(`Generated on: ${new Date().toLocaleString()}`, 14, 38);
+
+      const gasPrice = receipt.effectiveGasPrice || tx.gasPrice || ethers.BigNumber.from(0);
+
+      doc.autoTable({
+        startY: 45,
+        headStyles: { fillColor: [14, 165, 233] },
+        head: [['Property', 'Value']],
+        body: [
+          ['Action', log.text],
+          ['Timestamp', new Date(parseInt(log.timestamp) * 1000).toLocaleString()],
+          ['Transaction Hash', log.txHash],
+          ['Block Number', receipt.blockNumber.toString()],
+          ['From Address', tx.from],
+          ['To Address (Contract)', tx.to],
+          ['Gas Paid', ethers.utils.formatEther(receipt.gasUsed.mul(gasPrice)) + ' ETH'],
+        ],
+        columnStyles: {
+          0: { fontStyle: 'bold', cellWidth: 40 },
+          1: { cellWidth: 140 }
+        }
+      });
+
+      doc.setFontSize(10);
+      doc.setTextColor(150, 150, 150);
+      doc.text("Mathematically secured by the Ethereum Blockchain.", 14, doc.lastAutoTable.finalY + 15);
+      
+      doc.save(`Receipt_${log.txHash.substring(0, 10)}.pdf`);
+      toast.success("Receipt downloaded successfully!", { id: toastId });
+
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to generate PDF.", { id: toastId });
+    }
+  };
+
   return (
     <div className="w-full mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-10 animate-fadeIn">
       <h2 className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-white to-slate-400 mb-8">User Dashboard & Analytics</h2>
@@ -267,10 +332,14 @@ export default function Dashboard({ contract, account }) {
                       <p className="text-xs text-slate-400 mt-1 font-mono tracking-wide">{new Date(parseInt(log.timestamp) * 1000).toLocaleString()}</p>
                     </div>
                     <div className="shrink-0 flex flex-col justify-center text-xs text-slate-500 font-mono self-center">
-                        <a href={`https://sepolia.etherscan.io/tx/${log.txHash}`} target="_blank" rel="noopener noreferrer" className="hover:text-cyan-400 transition-colors flex items-center gap-1 cursor-pointer" title={log.txHash}>
-                            Tx
-                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
-                        </a>
+                        <button 
+                            onClick={() => downloadTransactionPDF(log)} 
+                            className="hover:text-cyan-400 hover:bg-cyan-500/20 transition-all flex items-center gap-1 cursor-pointer bg-cyan-500/10 px-3 py-1.5 rounded-full border border-cyan-500/30" 
+                            title="Download PDF Receipt"
+                        >
+                            PDF
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                        </button>
                     </div>
                   </div>
                 ))
