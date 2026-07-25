@@ -560,4 +560,27 @@ describe("UploadUpgradeableV9", function () {
             ).to.be.revertedWith("Not owner of file");
         });
     });
+
+    // =========================================================
+    // SECTION 13: Public O(1) Getters (ownsFile & fileExists)
+    // =========================================================
+    describe("13. Public O(1) Getters (ownsFile & fileExists)", function () {
+        it("should return true for existing files and false for non-existent/deleted files", async function () {
+            await upload.connect(alice).addWithE2EE("ipfs://f1", "Docs", HASH_A, SIG_A, "Key1");
+
+            // Public getters return true
+            expect(await upload.ownsFile(alice.address, "ipfs://f1")).to.be.true;
+            expect(await upload.fileExists(alice.address, "ipfs://f1")).to.be.true;
+
+            // Non-existent file returns false
+            expect(await upload.ownsFile(alice.address, "ipfs://ghost")).to.be.false;
+            expect(await upload.fileExists(alice.address, "ipfs://ghost")).to.be.false;
+
+            // Delete file -> returns false
+            await upload.connect(alice).deleteFile("ipfs://f1");
+            expect(await upload.ownsFile(alice.address, "ipfs://f1")).to.be.false;
+            expect(await upload.fileExists(alice.address, "ipfs://f1")).to.be.false;
+        });
+    });
 });
+
