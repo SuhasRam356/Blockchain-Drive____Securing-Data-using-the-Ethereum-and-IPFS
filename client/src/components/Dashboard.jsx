@@ -248,6 +248,9 @@ export default function Dashboard({ contract, account }) {
              <h3 className="text-4xl font-bold text-white">{loading ? '...' : storageUsedMB}<span className="text-xl text-slate-500 ml-1">MB</span></h3>
              <svg className="w-8 h-8 text-purple-400/50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"></path></svg>
            </div>
+           <p className="text-[10px] text-slate-400 mt-3" title="Base64 encoding and AES encryption inflates the physical file size on IPFS by ~77%">
+             Est. Original Size: <span className="text-slate-300 font-medium">{loading ? '...' : (storageUsedMB / 1.77).toFixed(2)} MB</span>
+           </p>
          </div>
 
          {/* EVM Gas Savings Calculator */}
