@@ -170,7 +170,17 @@ contract UploadUpgradeableV9 is Initializable, OwnableUpgradeable, PausableUpgra
 
     // --- V10 O(1) HELPER FUNCTIONS & GETTERS ---
     function _ownsFile(address owner, string memory url) internal view returns (bool) {
-        return fileOwnership[owner][keccak256(bytes(url))];
+        if (fileOwnership[owner][keccak256(bytes(url))]) {
+            return true;
+        }
+        // Fallback for files uploaded before V10 migration
+        FileInfo[] storage files = value[owner];
+        for (uint i = 0; i < files.length; i++) {
+            if (keccak256(bytes(files[i].url)) == keccak256(bytes(url))) {
+                return true;
+            }
+        }
+        return false;
     }
 
     function ownsFile(address owner, string calldata url) external view returns (bool) {

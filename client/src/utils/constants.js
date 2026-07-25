@@ -1,4 +1,4 @@
-import UploadUpgradeableV7 from "./UploadUpgradeableV7.json";
+import UploadUpgradeableV9 from "./UploadUpgradeableV9.json";
 import DriveDAO from "../abis/DriveDAO.json";
 import DriveToken from "../abis/DriveToken.json";
 import DriveFaucet from "../abis/DriveFaucet.json";
@@ -6,7 +6,7 @@ import DriveFaucet from "../abis/DriveFaucet.json";
 
 
 export const contractAddress = import.meta.env.VITE_CONTRACT_ADDRESS;
-export const contractAbi = UploadUpgradeableV7.abi || UploadUpgradeableV7;
+export const contractAbi = UploadUpgradeableV9.abi || UploadUpgradeableV9;
 export const daoAddress = import.meta.env.VITE_DAO_ADDRESS;
 export const daoAbi = DriveDAO.abi || DriveDAO;
 export const tokenAddress = import.meta.env.VITE_TOKEN_ADDRESS;
