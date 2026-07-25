@@ -108,7 +108,7 @@ const Share = () => {
                 if (allFiles.length > 0) {
                     const provider = new ethers.providers.Web3Provider(window.ethereum);
                     const signer = provider.getSigner();
-                    const { getDeterministicKey, decryptAESKey, encryptAESKey } = await import('../utils/encryption');
+                    const { getDeterministicKey, deriveCategoryKeypair, decryptAESKey, encryptAESKey } = await import('../utils/encryption');
                     
                     toast("Please sign to authenticate your session and share files.", { icon: '✍️' });
                     const secretKey = await getDeterministicKey(account, signer, contract.address);
@@ -124,8 +124,15 @@ const Share = () => {
                             encryptedAesKeyHex = await contract.encryptedAESKeys(file.url);
                         }
                         if (encryptedAesKeyHex && encryptedAesKeyHex !== "MANUAL" && encryptedAesKeyHex !== "") {
-                            // Decrypt AES key with Alice's secret key
-                            const aesKey = await decryptAESKey(encryptedAesKeyHex, secretKey);
+                            // Decrypt AES key with Alice's HD category sub-key (with legacy fallback)
+                            let aesKey;
+                            const { categorySecretHex } = deriveCategoryKeypair(secretKey, file.category);
+                            try {
+                                aesKey = await decryptAESKey(encryptedAesKeyHex, categorySecretHex);
+                            } catch (err) {
+                                console.warn("Share: HD Key decryption failed, falling back to legacy Master Key...");
+                                aesKey = await decryptAESKey(encryptedAesKeyHex, secretKey);
+                            }
                             // Encrypt AES key with Bob's public key
                             const newEncryptedKey = await encryptAESKey(aesKey, receiverPubKey);
                             

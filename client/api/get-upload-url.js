@@ -1,5 +1,6 @@
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import crypto from "crypto";
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -9,10 +10,20 @@ export default async function handler(req, res) {
   try {
     // Parse body for Vercel Serverless
     const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
-    const { fileName, fileType } = body;
+    const { fileName, fileType, nonce } = body;
     
     if (!fileName) {
       return res.status(400).json({ error: 'Missing fileName' });
+    }
+
+    if (nonce === undefined) {
+      return res.status(400).json({ error: 'Missing Proof-of-Work nonce for anti-spam' });
+    }
+
+    // Verify Proof-of-Work (Hashcash): Hash must start with 4 zeros
+    const hash = crypto.createHash("sha256").update(fileName + nonce).digest("hex");
+    if (!hash.startsWith("0000")) {
+      return res.status(400).json({ error: 'Invalid Proof-of-Work solution' });
     }
 
     // Read from process.env (Server-side only!)

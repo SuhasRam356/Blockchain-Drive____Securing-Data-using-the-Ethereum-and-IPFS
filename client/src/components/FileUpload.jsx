@@ -83,31 +83,42 @@ const FileUpload = ({ contract, account, provider, updateTarget = null, onUpload
             
             // PKI Asymmetric E2EE
             toast("Fetching encryption key & encrypting...", { icon: '🔐' });
-            const pubKey = await contract.encryptionPublicKeys(finalReceiver);
-            if (!pubKey || pubKey === "") {
-                throw new Error(`${finalReceiver} has not published their Encryption Public Key. They must connect to the app first.`);
+            
+            const { getDeterministicKey, deriveCategoryKeypair, encryptAESKey } = await import('../utils/encryption');
+            let targetPubKey = "";
+            
+            if (finalReceiver.toLowerCase() === account.toLowerCase()) {
+                // Owner upload: Use HD Category Sub-Key for granular security
+                const secretKey = await getDeterministicKey(account, signer, contract.address);
+                const { categoryPublicKey } = deriveCategoryKeypair(secretKey, category);
+                targetPubKey = categoryPublicKey;
+            } else {
+                // Third-party upload: Use their Master Public Key
+                targetPubKey = await contract.encryptionPublicKeys(finalReceiver);
+                if (!targetPubKey || targetPubKey === "") {
+                    throw new Error(`${finalReceiver} has not published their Encryption Public Key. They must connect to the app first.`);
+                }
             }
                  
-                 // Generate random AES key
-                 const aesKey = ethers.utils.hexlify(ethers.utils.randomBytes(32));
+            // Generate random AES key
+            const aesKey = ethers.utils.hexlify(ethers.utils.randomBytes(32));
                  
-                 // Encrypt file with AES key
-                 const base64data = await readFileAsDataURL(files[0]);
-                 const ciphertext = CryptoJS.AES.encrypt(base64data, aesKey).toString();
+            // Encrypt file with AES key
+            const base64data = await readFileAsDataURL(files[0]);
+            const ciphertext = CryptoJS.AES.encrypt(base64data, aesKey).toString();
                  
-                 if (useStego) {
-                     toast("Automatically generating Cryptographic Data Matrix (Steganography)...", { icon: '🕵️' });
-                     fileDataToUpload = await encodeStego(null, ciphertext);
-                 } else {
-                     const blob = new Blob([ciphertext], { type: 'text/plain' });
-                     fileDataToUpload = new File([blob], files[0].name + ".enc", { type: "text/plain" });
-                 }
+            if (useStego) {
+                toast("Automatically generating Cryptographic Data Matrix (Steganography)...", { icon: '🕵️' });
+                fileDataToUpload = await encodeStego(null, ciphertext);
+            } else {
+                const blob = new Blob([ciphertext], { type: 'text/plain' });
+                fileDataToUpload = new File([blob], files[0].name + ".enc", { type: "text/plain" });
+            }
 
-                 // Encrypt AES key with Receiver's Public Key using new centralized module
-                 const { encryptAESKey } = await import('../utils/encryption');
-                 encryptedAesKeyHex = await encryptAESKey(aesKey, pubKey);
+            // Encrypt AES key with Target Public Key
+            encryptedAesKeyHex = await encryptAESKey(aesKey, targetPubKey);
 
-                 // Generate Zero-Knowledge Proof (ZKP) for the AES Key (Conceptual Commitment Scheme)
+            // Generate Zero-Knowledge Proof (ZKP) for the AES Key (Conceptual Commitment Scheme)
                  toast("Generating ZKP Commitment (Conceptual Demo)...", { icon: '🧙‍♂️' });
                  let zkpProofStr = "";
                  let isZkpValid = false;
@@ -205,9 +216,11 @@ const FileUpload = ({ contract, account, provider, updateTarget = null, onUpload
             const batchEncryptedAesKeys = [];
             
             toast("Encrypting batch files locally...", { icon: '🔒' });
-            const { getDeterministicKey, generateAESKey, encryptFile, encryptAESKey } = await import('../utils/encryption');
+            const { getDeterministicKey, deriveCategoryKeypair, generateAESKey, encryptFile, encryptAESKey } = await import('../utils/encryption');
             const secretKey = await getDeterministicKey(account, signer, contract.address);
-            const pubKey = await contract.encryptionPublicKeys(account);
+            
+            // For batch, it's always an owner upload in V9
+            const { categoryPublicKey } = deriveCategoryKeypair(secretKey, category);
             
             const rawAesKeys = [];
 
@@ -227,7 +240,8 @@ const FileUpload = ({ contract, account, provider, updateTarget = null, onUpload
                   fileDataToUpload = new File([blob], rawFile.name + ".enc", { type: "text/plain" });
               }
               
-              const encryptedAesKeyHex = await encryptAESKey(aesKey, pubKey);
+              // Encrypt using the HD Category Sub-Key
+              const encryptedAesKeyHex = await encryptAESKey(aesKey, categoryPublicKey);
 
               finalFilesData.push(fileDataToUpload);
 

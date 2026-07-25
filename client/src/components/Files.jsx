@@ -201,10 +201,21 @@ export default function Files({ contract, account, shared, title }) {
              toast("Deriving deterministic key & decrypting...", { icon: '🔐' });
              const provider = new ethers.providers.Web3Provider(window.ethereum);
              const signer = provider.getSigner();
-             const { getDeterministicKey, decryptAESKey } = await import('../utils/encryption');
+             const { getDeterministicKey, deriveCategoryKeypair, decryptAESKey } = await import('../utils/encryption');
              toast("Please sign to authenticate your session and decrypt this file.", { icon: '✍️' });
              const secretKey = await getDeterministicKey(account, signer, contract.address);
-             aesKeyToUse = await decryptAESKey(encryptedAesKeyHex, secretKey);
+             
+             if (fileOwner.toLowerCase() === account.toLowerCase()) {
+                 const { categorySecretHex } = deriveCategoryKeypair(secretKey, fileObj.category);
+                 try {
+                     aesKeyToUse = await decryptAESKey(encryptedAesKeyHex, categorySecretHex);
+                 } catch (err) {
+                     console.warn("Category HD Key decryption failed, falling back to legacy Master Key...");
+                     aesKeyToUse = await decryptAESKey(encryptedAesKeyHex, secretKey);
+                 }
+             } else {
+                 aesKeyToUse = await decryptAESKey(encryptedAesKeyHex, secretKey);
+             }
         } else if (!encryptedAesKeyHex || encryptedAesKeyHex === "") {
              // Unencrypted file
              window.open(url, '_blank');

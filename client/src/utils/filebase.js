@@ -1,4 +1,23 @@
 import axios from "axios";
+import { ethers } from "ethers";
+
+/**
+ * Solves a simple Hashcash PoW puzzle to prevent spam
+ */
+const solvePoW = async (fileName, difficulty = 4) => {
+  let nonce = 0;
+  const prefix = "0".repeat(difficulty);
+  while (true) {
+    const hashStr = ethers.utils.sha256(ethers.utils.toUtf8Bytes(fileName + nonce));
+    if (hashStr.substring(2).startsWith(prefix)) {
+      return nonce;
+    }
+    nonce++;
+    if (nonce % 1000 === 0) {
+      await new Promise(r => setTimeout(r, 0)); // Yield to prevent UI freeze
+    }
+  }
+};
 
 /**
  * Uploads a file to Filebase IPFS with 3 retries using exponential backoff.
@@ -14,13 +33,17 @@ export const uploadToFilebase = async (file, onProgress, maxRetries = 3) => {
   while (attempt < maxRetries) {
     attempt++;
     try {
-      // 1. Ask secure backend for a temporary presigned upload URL
+      // 1. Solve PoW Anti-Spam puzzle
+      const nonce = await solvePoW(file.name, 4);
+
+      // 2. Ask secure backend for a temporary presigned upload URL
       const response = await fetch("/api/get-upload-url", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
           fileName: file.name,
-          fileType: file.type || "application/octet-stream"
+          fileType: file.type || "application/octet-stream",
+          nonce: nonce
         })
       });
 

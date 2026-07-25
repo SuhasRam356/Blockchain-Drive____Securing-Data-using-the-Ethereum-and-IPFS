@@ -76,6 +76,20 @@ export const derivePublicKey = (secretKeyHex) => {
 };
 
 /**
+ * Hierarchical Deterministic (HD) Key Derivation.
+ * Derives a deterministic Category Sub-Key based on the Master Secret Key and Category Name.
+ * @param {string} masterSecretKeyHex - Master 32-byte hex string
+ * @param {string} category - Category string (e.g. "General")
+ * @returns {Object} { categorySecretHex, categoryPublicKey }
+ */
+export const deriveCategoryKeypair = (masterSecretKeyHex, category) => {
+    const hashStr = masterSecretKeyHex + category;
+    const categorySecretHex = ethers.utils.sha256(ethers.utils.toUtf8Bytes(hashStr)).replace('0x', '');
+    const categoryPublicKey = sigUtil.getEncryptionPublicKey(categorySecretHex);
+    return { categorySecretHex, categoryPublicKey };
+};
+
+/**
  * Encrypts an AES key (or any data) using the receiver's public key.
  * @param {string} data - Data to encrypt
  * @param {string} publicKeyBase64 - Receiver's base64 public key
