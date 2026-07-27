@@ -5,7 +5,7 @@ import DriveFaucet from "../abis/DriveFaucet.json";
 
 
 
-export const contractAddress = import.meta.env.VITE_CONTRACT_ADDRESS;
+export const contractAddress = "0x71D9B51bFE5DE572673B241B1f9109e58F0B834F"; // Automatically use new V9 proxy
 export const contractAbi = UploadUpgradeableV9.abi || UploadUpgradeableV9;
 export const daoAddress = import.meta.env.VITE_DAO_ADDRESS;
 export const daoAbi = DriveDAO.abi || DriveDAO;
