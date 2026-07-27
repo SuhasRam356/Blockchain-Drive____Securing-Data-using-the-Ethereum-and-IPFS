@@ -164,6 +164,7 @@ const Share = () => {
                 console.error(err);
                 if (err.reason) return `Blockchain error: ${err.reason}`;
                 if (err.message && err.message.includes("Invalid Ethereum address")) return err.message;
+                if (err.message && err.message.includes("has not set up E2EE yet")) return err.message;
                 if (err.message && err.message.includes("user rejected transaction")) return "Transaction rejected in MetaMask";
                 return 'Failed to grant access. Please verify the address.';
             }
