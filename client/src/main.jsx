@@ -4,13 +4,13 @@ import App from './App.jsx'
 import './index.css'
 import { ApolloClient, InMemoryCache, HttpLink } from '@apollo/client';
 import { ApolloProvider } from '@apollo/client/react';
-import { Route, RouterProvider, createHashRouter, createRoutesFromElements } from 'react-router-dom'
+import { Route, RouterProvider, createBrowserRouter, createRoutesFromElements } from 'react-router-dom'
 import Files from './components/Files.jsx'
 import Share from './components/Share.jsx'
 import Layout from './components/Layout.jsx'
 import Governance from './components/Governance.jsx'
 
-const router = createHashRouter([
+const router = createBrowserRouter([
         {
           path: "/",
           element: <Layout />,
