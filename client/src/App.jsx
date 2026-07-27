@@ -135,39 +135,11 @@ function App() {
         
         <div className="glass-panel p-8 w-full max-w-xl mx-auto shadow-2xl relative">
           <div className="absolute -inset-0.5 bg-gradient-to-r from-cyan-400 to-purple-500 rounded-[1rem] blur opacity-20 -z-10"></div>
-          <div className="flex flex-col items-center justify-center space-y-4 mb-6">
-            <div className="flex items-center space-x-2 bg-slate-800/50 py-2 px-4 rounded-full w-fit mx-auto border border-white/5">
-              <div className={`h-2.5 w-2.5 rounded-full ${account ? 'bg-green-400 shadow-[0_0_8px_#4ade80]' : 'bg-red-500 shadow-[0_0_8px_#ef4444]'}`}></div>
-              <p className="text-sm text-slate-300 font-mono tracking-wider">
-                {account ? `${account.substring(0, 6)}...${account.substring(38)}` : "Wallet Not Connected"}
-              </p>
-            </div>
-            {account && (
-              <button 
-                onClick={async () => {
-                  try {
-                    const { getDeterministicKey, derivePublicKey } = await import('./utils/encryption');
-                    const signer = provider.getSigner();
-                    const secretKey = await getDeterministicKey(account, signer, contract.address);
-                    const pubKey = derivePublicKey(secretKey);
-                    const nonce = await contract.encryptionKeyNonces(account);
-                    const message = "Confirm E2EE Public Key: " + pubKey + " Nonce: " + nonce.toString();
-                    const signature = await signer.signMessage(message);
-                    const tx = await contract.setEncryptionPublicKey(pubKey, signature);
-                    import('react-hot-toast').then(toast => toast.default.loading("Saving key to blockchain..."));
-                    await tx.wait();
-                    localStorage.setItem('migratedToSepolia_' + account, 'true');
-                    import('react-hot-toast').then(toast => toast.default.success("E2EE Key successfully registered!"));
-                  } catch (e) {
-                    console.error(e);
-                    import('react-hot-toast').then(toast => toast.default.error("Error: " + (e.reason || e.message)));
-                  }
-                }}
-                className="text-xs bg-purple-600 hover:bg-purple-500 text-white py-1 px-3 rounded-md transition-all shadow-[0_0_10px_#9333ea]"
-              >
-                Force Setup E2EE
-              </button>
-            )}
+          <div className="flex items-center justify-center space-x-2 mb-6 bg-slate-800/50 py-2 px-4 rounded-full w-fit mx-auto border border-white/5">
+            <div className={`h-2.5 w-2.5 rounded-full ${account ? 'bg-green-400 shadow-[0_0_8px_#4ade80]' : 'bg-red-500 shadow-[0_0_8px_#ef4444]'}`}></div>
+            <p className="text-sm text-slate-300 font-mono tracking-wider">
+              {account ? `${account.substring(0, 6)}...${account.substring(38)}` : "Wallet Not Connected"}
+            </p>
           </div>
           
           <FileUpload
