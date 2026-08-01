@@ -6,6 +6,16 @@ const sigUtil = sigUtilImport.default || sigUtilImport;
 let cachedSecretKey = null;
 
 /**
+ * Generates a Convergent AES Encryption Key based on the file's content hash.
+ * This ensures identical files produce identical AES keys, enabling decentralized deduplication.
+ * @param {string} fileData - The raw file data (e.g., base64 string)
+ * @returns {string} The 32-byte AES key as a hex string (with '0x')
+ */
+export const generateConvergentKey = (fileData) => {
+    return ethers.utils.sha256(ethers.utils.toUtf8Bytes(fileData));
+};
+
+/**
  * Derives a 32-byte secret key cryptographically using an Ethereum signature.
  * @param {string} address - User's wallet address 
  * @param {ethers.Signer} signer - Ethers signer object to request the signature

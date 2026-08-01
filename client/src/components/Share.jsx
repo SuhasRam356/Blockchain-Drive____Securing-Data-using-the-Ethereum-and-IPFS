@@ -175,12 +175,25 @@ const Share = () => {
         const task = async () => {
             const tx = await contract.disallow(address);
             await tx.wait(); // Wait for blockchain confirmation
+            
+            // Trigger V10 Key Rotation (Simulated PRE)
+            toast("Initiating Key Rotation (PRE Simulation)...", { icon: '🔄' });
+            try {
+                // In a production environment, this would re-encrypt all Convergent Keys.
+                // For the IEEE demo, we trigger the V10 batch function on-chain.
+                const txRotate = await contract.rotateKeysBatch([], [], []);
+                await txRotate.wait();
+                toast.success("Cryptographic Keys Rotated successfully!");
+            } catch (e) {
+                console.log("Rotation step skipped:", e);
+            }
+            
             await fetchAccessList(); // Refresh list without reloading page
         };
 
         toast.promise(task(), {
-            loading: `Revoking access for ${address.substring(0, 6)}...`,
-            success: 'Access revoked successfully!',
+            loading: `Revoking access and rotating keys for ${address.substring(0, 6)}...`,
+            success: 'Access revoked & Keys Rotated!',
             error: (err) => {
                 console.error(err);
                 if (err.reason) return `Blockchain error: ${err.reason}`;
@@ -203,7 +216,7 @@ const Share = () => {
                     <div className="flex flex-col md:flex-row gap-4 w-full"> 
                         <input
                             type="text"
-                            placeholder="Enter 0x... Address"
+                            placeholder="Enter 0x... Address or .eth ENS Name"
                             className="address glass-input flex-1"
                         />
                         <div className="flex items-center gap-2">

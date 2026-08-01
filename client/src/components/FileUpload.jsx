@@ -85,7 +85,7 @@ const FileUpload = ({ contract, account, provider, updateTarget = null, onUpload
             // PKI Asymmetric E2EE
             toast("Fetching encryption key & encrypting...", { icon: '🔐' });
             
-            const { getDeterministicKey, deriveCategoryKeypair, encryptAESKey } = await import('../utils/encryption');
+            const { getDeterministicKey, deriveCategoryKeypair, encryptAESKey, generateConvergentKey } = await import('../utils/encryption');
             let targetPubKey = "";
             
             if (finalReceiver.toLowerCase() === account.toLowerCase()) {
@@ -101,11 +101,14 @@ const FileUpload = ({ contract, account, provider, updateTarget = null, onUpload
                 }
             }
                  
-            // Generate random AES key
-            const aesKey = ethers.utils.hexlify(ethers.utils.randomBytes(32));
+            // Read file data
+            const base64data = await readFileAsDataURL(files[0]);
+            
+            // Generate Convergent AES Key for Deduplication
+            toast("Convergent Encryption: Checking for deduplication...", { icon: '🔍' });
+            const aesKey = generateConvergentKey(base64data);
                  
             // Encrypt file with AES key
-            const base64data = await readFileAsDataURL(files[0]);
             const ciphertext = CryptoJS.AES.encrypt(base64data, aesKey).toString();
                  
             if (useStego) {
