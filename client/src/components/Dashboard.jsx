@@ -80,46 +80,53 @@ export default function Dashboard({ contract, account }) {
           setStorageUsedMB(0); 
         }
 
-        // 3. Fetch Events (Activity & Shares) via The Graph
-        const GET_DASHBOARD_DATA = gql`
-          query GetDashboardData($user: Bytes!) {
-            accesses(where: { owner: $user }) {
-              revokedAt
+        // 3. Fetch Events & Shares directly from Smart Contract (Bypassing The Graph for reliability)
+        try {
+            // Fetch Share Stats directly from contract state
+            const currentAccess = await contract.shareAccess();
+            let active = 0, expired = 0;
+            currentAccess.forEach(a => {
+                if (a.access) active++;
+                else expired++;
+            });
+            setSharedUsers(currentAccess.length);
+            setActiveShares(active);
+            setExpiredShares(expired);
+
+            // Fetch Activity Logs using ethers.js event queries
+            const provider = contract.provider;
+            
+            // Query FileAdded events for this user (safely handling local network short chains)
+            const currentBlock = await provider.getBlockNumber();
+            const fromBlock = Math.max(0, currentBlock - 10000);
+            
+            const fileAddedFilter = contract.filters.FileAdded(account);
+            const rawLogs = await contract.queryFilter(fileAddedFilter, fromBlock, "latest");
+            
+            // Parse logs into UI format
+            const parsedEvents = await Promise.all(rawLogs.reverse().slice(0, 15).map(async (log) => {
+                const block = await provider.getBlock(log.blockNumber);
+                return {
+                    id: log.transactionHash,
+                    type: "FILE_ADDED",
+                    text: "Uploaded a new file",
+                    timestamp: block.timestamp,
+                    txHash: log.transactionHash
+                };
+            }));
+
+            if (isMounted) {
+                setActivityLog(parsedEvents);
+                setLoading(false);
             }
-            activityEvents(where: { user: $user }, orderBy: timestamp, orderDirection: desc, first: 15) {
-              id
-              type
-              text
-              timestamp
-              txHash
+        } catch (err) {
+            console.error("Direct RPC event fetch failed:", err);
+            // Fallback gracefully if RPC doesn't support deep historical logs
+            if (isMounted) {
+                setActivityLog([]);
+                setLoading(false);
             }
-          }
-        `;
-        
-        const { data: graphData } = await client.query({
-            query: GET_DASHBOARD_DATA,
-            variables: { user: account.toLowerCase() },
-            fetchPolicy: 'network-only'
-        });
-
-        const accesses = graphData.accesses || [];
-        let active = 0, expired = 0;
-        accesses.forEach(a => {
-            if (a.revokedAt === null) active++;
-            else expired++;
-        });
-        
-        setSharedUsers(accesses.length);
-        setActiveShares(active);
-        setExpiredShares(expired);
-
-        let events = graphData.activityEvents || [];
-
-        if (isMounted) {
-            setActivityLog(events);
-            setLoading(false);
         }
-
       } catch (e) {
          console.error("Dashboard data fetch error:", e);
          if (isMounted) setLoading(false);
