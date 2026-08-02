@@ -1,0 +1,16 @@
+HOW TO FIND AND DOWNLOAD YOUR PPT
+==================================
+
+File location: /Blockchain_Drive_PPT.pptx
+File location absolute: /home/user/Blockchain-Drive____Securing-Data-using-the-Ethereum-and-IPFS/Blockchain_Drive_PPT.pptx
+Size: ~84KB, 27 slides
+
+Steps to download:
+1. On left sidebar in Arena, you see Files explorer
+2. Look for Blockchain_Drive_PPT.pptx at root
+3. Right click -> Download
+
+OR if you are on GitHub:
+Go to branch arena/019fc1c5-blockchain-drive-securing-data -> find Blockchain_Drive_PPT.pptx -> Download
+
+Alternative: HTML version Blockchain_Drive_PPT_Slides.html can be opened directly in browser
