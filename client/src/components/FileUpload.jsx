@@ -122,19 +122,13 @@ const FileUpload = ({ contract, account, provider, updateTarget = null, onUpload
             // Encrypt AES key with Target Public Key
             encryptedAesKeyHex = await encryptAESKey(aesKey, targetPubKey);
 
-            // Generate Zero-Knowledge Proof (ZKP) for the AES Key (Conceptual Commitment Scheme)
-                 toast("Generating ZKP Commitment (Conceptual Demo)...", { icon: '🧙‍♂️' });
-                 let zkpProofStr = "";
-                 let isZkpValid = false;
-                 try {
-                     // Simulate ZKP generation for the Conceptual Demo
-                     await new Promise(r => setTimeout(r, 800));
-                     zkpProofStr = '{"conceptual": true}';
-                     isZkpValid = true;
-                     toast.success("ZKP Commitment Cryptographically Verified (Demo)!");
-                 } catch (err) {
-                     isZkpValid = false;
-                 }
+            // Generate Zero-Knowledge Proof (ZKP) Hash for the AES Key (Real Circom implementation)
+            toast("Generating Cryptographic ZKP Commitment...", { icon: '🧙‍♂️' });
+            const { computeZkHash } = await import('../utils/zkp.js');
+            const { zkHash, secretInt } = await computeZkHash(aesKey);
+            let isZkpValid = true;
+            try { localStorage.setItem('zkp_secret_' + aesKey, secretInt); } catch(e) {}
+            toast.success("ZKP Hash Generated!");
 
             // Signature verification removed - Blockchain inherently verifies sender via msg.sender
             singleFileHashHex = ethers.constants.HashZero;
@@ -181,7 +175,13 @@ const FileUpload = ({ contract, account, provider, updateTarget = null, onUpload
                 return `File E2EE locked and sent to ${finalReceiver}.`;
             } else {
                 if (contract.addWithE2EE) {
-                    const tx = await contract.addWithE2EE(uploadedHashes[0], combinedCategory, singleFileHashHex, singleFileSignature, encryptedAesKeyHex);
+                    // Backwards compatibility or direct proxy mapping
+                    let tx;
+                    if (contract.interface.functions['addBatchWithE2EE(string[],string,bytes32[],bytes[],string[],uint256[])']) {
+                        tx = await contract.addBatchWithE2EE([uploadedHashes[0]], combinedCategory, [singleFileHashHex], [singleFileSignature], [encryptedAesKeyHex], [zkHash]);
+                    } else {
+                        tx = await contract.addWithE2EE(uploadedHashes[0], combinedCategory, singleFileHashHex, singleFileSignature, encryptedAesKeyHex);
+                    }
                     await tx.wait();
 
                     // V7: Share AES key with users in the access list

@@ -163,7 +163,7 @@ export default function Files({ contract, account, shared, title }) {
     });
   };
 
-  const decryptAndOpen = async (url, isStego = false) => {
+  const decryptAndOpen = async (url, isStego = false, fileCategory = "") => {
     const task = async () => {
         let aesKeyToUse = "";
         
@@ -206,7 +206,7 @@ export default function Files({ contract, account, shared, title }) {
              const secretKey = await getDeterministicKey(account, signer, contract.address);
              
              if (fileOwner.toLowerCase() === account.toLowerCase()) {
-                 const { categorySecretHex } = deriveCategoryKeypair(secretKey, fileObj.category);
+                 const { categorySecretHex } = deriveCategoryKeypair(secretKey, fileCategory);
                  try {
                      aesKeyToUse = await decryptAESKey(encryptedAesKeyHex, categorySecretHex);
                  } catch (err) {
@@ -222,6 +222,25 @@ export default function Files({ contract, account, shared, title }) {
              return "File opened";
         } else {
              throw new Error("No valid E2EE key found.");
+        }
+        
+        const isZkpVerified = fileCategory && fileCategory.includes('#ZKP-Verified');
+        if (isZkpVerified) {
+            toast("Generating Zero-Knowledge Proof for Access Verification...", { icon: '🧙‍♂️' });
+            const { computeZkHash, generateZKProof } = await import('../utils/zkp.js');
+            const { secretInt } = await computeZkHash(aesKeyToUse);
+            const { a, b, c } = await generateZKProof(secretInt);
+            
+            toast("Verifying ZKP on the blockchain...", { icon: '⛓️' });
+            // For V11 contract
+            if (contract.verifyFileAccessZKP) {
+                const isValid = await contract.verifyFileAccessZKP(url, a, b, c);
+                if (!isValid) throw new Error("Zero-Knowledge Proof verification failed on-chain.");
+                toast.success("ZKP Verified on-chain!");
+            } else {
+                toast.error("Smart Contract not upgraded for ZKP verification.");
+                throw new Error("Smart Contract not upgraded for ZKP verification.");
+            }
         }
         
         const response = await axios.get(url, { responseType: isStego ? 'blob' : 'text' });
@@ -433,8 +452,8 @@ export default function Files({ contract, account, shared, title }) {
                   )}
                   <div className="w-full flex gap-2 items-center">
                     <button 
-                      onClick={() => decryptAndOpen(fileObj.url, fileObj.category.includes('#Stego'))}
-                      className="flex-1 py-2.5 bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 rounded-xl text-cyan-400 transition-colors font-bold text-sm shadow-sm"
+                      onClick={() => decryptAndOpen(fileObj.url, fileObj.category.includes('#Stego'), fileObj.category)}
+                      className="inline-flex items-center justify-center rounded-xl bg-cyan-500 px-4 py-2 text-sm font-semibold text-slate-900 shadow-sm hover:bg-cyan-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-500 transition-colors w-full"
                     >
                       Open File
                     </button>
@@ -607,7 +626,7 @@ export default function Files({ contract, account, shared, title }) {
                             
                             <div className="flex gap-2 shrink-0">
                                 <button 
-                                    onClick={() => decryptAndOpen(ver.url, historyIsStego)}
+                                    onClick={() => decryptAndOpen(ver.url, historyIsStego, historyIsStego ? "#Stego" : "")}
                                     className="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 rounded text-xs font-semibold text-white transition-colors"
                                 >
                                     View
