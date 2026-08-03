@@ -116,7 +116,16 @@ export default function Dashboard({ contract, account }) {
             }));
 
             if (isMounted) {
-                setActivityLog(parsedEvents);
+                setActivityLog(prev => {
+                    if (parsedEvents.length === 0 && prev.length > 0) {
+                        return prev; // Prevent vanishing if RPC is lagging and returns 0 events temporarily
+                    }
+                    // Merge to prevent flickering of the most recent events
+                    const eventMap = new Map();
+                    prev.forEach(e => eventMap.set(e.id, e));
+                    parsedEvents.forEach(e => eventMap.set(e.id, e));
+                    return Array.from(eventMap.values()).sort((a, b) => b.timestamp - a.timestamp).slice(0, 15);
+                });
                 setLoading(false);
             }
         } catch (err) {
