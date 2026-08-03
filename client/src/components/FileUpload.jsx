@@ -102,7 +102,20 @@ const FileUpload = ({ contract, account, provider, updateTarget = null, onUpload
             }
                  
             // Read file data
-            const base64data = await readFileAsDataURL(files[0]);
+            let base64data = await readFileAsDataURL(files[0]);
+            
+            if (!useStego && window.CompressionStream) {
+                toast("Compressing payload for optimized storage...", { icon: '🗜️' });
+                const stream = new Blob([base64data]).stream().pipeThrough(new CompressionStream("gzip"));
+                const compressedBlob = await new Response(stream).blob();
+                
+                base64data = await new Promise((resolve) => {
+                    const reader = new FileReader();
+                    reader.onload = (e) => resolve(e.target.result);
+                    // Explicitly set type to application/gzip so the downloader knows to decompress it
+                    reader.readAsDataURL(new Blob([compressedBlob], { type: 'application/gzip' }));
+                });
+            }
             
             // Generate Convergent AES Key for Deduplication
             toast("Convergent Encryption: Checking for deduplication...", { icon: '🔍' });

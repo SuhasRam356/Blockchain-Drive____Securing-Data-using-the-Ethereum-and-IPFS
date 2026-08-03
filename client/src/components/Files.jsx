@@ -259,10 +259,24 @@ export default function Files({ contract, account, shared, title }) {
         }
         
         const bytes = CryptoJS.AES.decrypt(ciphertext, aesKeyToUse);
-        const originalDataURL = bytes.toString(CryptoJS.enc.Utf8);
+        let originalDataURL = bytes.toString(CryptoJS.enc.Utf8);
         
         if (!originalDataURL || !originalDataURL.startsWith('data:')) {
             throw new Error("Invalid password or file is not encrypted");
+        }
+        
+        // Decompression Pipeline for newer files
+        if (originalDataURL.startsWith('data:application/gzip') && window.DecompressionStream) {
+            toast("Decompressing optimized payload...", { icon: '🗜️' });
+            const base64Z = originalDataURL.split(',')[1];
+            const bstrZ = atob(base64Z);
+            let nZ = bstrZ.length;
+            const u8arrZ = new Uint8Array(nZ);
+            while (nZ--) { u8arrZ[nZ] = bstrZ.charCodeAt(nZ); }
+            
+            const compressedStream = new Blob([u8arrZ]).stream().pipeThrough(new DecompressionStream("gzip"));
+            const decompressedBlob = await new Response(compressedStream).blob();
+            originalDataURL = await decompressedBlob.text(); // Recover original DataURL string
         }
         
         const [meta, base64] = originalDataURL.split(',');
