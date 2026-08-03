@@ -121,9 +121,8 @@ export default function Dashboard({ contract, account }) {
             }
         } catch (err) {
             console.error("Direct RPC event fetch failed:", err);
-            // Fallback gracefully if RPC doesn't support deep historical logs
+            // Keep the existing activity log if RPC fails (e.g., due to rate limiting on background polls)
             if (isMounted) {
-                setActivityLog([]);
                 setLoading(false);
             }
         }
