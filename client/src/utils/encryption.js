@@ -1,133 +1,265 @@
+
 import { ethers } from 'ethers';
 import * as sigUtilImport from '@metamask/eth-sig-util';
+
 const sigUtil = sigUtilImport.default || sigUtilImport;
 
-// Cache the deterministic key in memory so the user only signs once per session
-let cachedSecretKey = null;
+// Cache keys separately for each wallet, chain and contract.
+const deterministicKeyCache = new Map();
 
 /**
- * Generates a Convergent AES Encryption Key based on the file's content hash.
- * This ensures identical files produce identical AES keys, enabling decentralized deduplication.
- * @param {string} fileData - The raw file data (e.g., base64 string)
- * @returns {string} The 32-byte AES key as a hex string (with '0x')
+ * Clear all cached E2EE keys from the current session.
+ */
+export const clearDeterministicKeyCache = () => {
+    deterministicKeyCache.clear();
+};
+
+/**
+ * Generates a convergent AES encryption key.
+ *
+ * @param {string} fileData
+ * @returns {string}
  */
 export const generateConvergentKey = (fileData) => {
-    return ethers.utils.sha256(ethers.utils.toUtf8Bytes(fileData));
+    return ethers.utils.sha256(
+        ethers.utils.toUtf8Bytes(fileData)
+    );
 };
 
 /**
- * Derives a 32-byte secret key cryptographically using an Ethereum signature.
- * @param {string} address - User's wallet address 
- * @param {ethers.Signer} signer - Ethers signer object to request the signature
- * @param {string} contractAddress - Deployed contract address to bind signature (prevents replay)
- * @returns {Promise<string>} The 32-byte secret key as a hex string (without '0x')
+ * Derives a deterministic E2EE key using an Ethereum signature.
+ *
+ * Cache is isolated by wallet address, chain ID and contract address.
+ *
+ * @param {string} address
+ * @param {ethers.Signer} signer
+ * @param {string} contractAddress
+ * @returns {Promise<string>}
  */
-export const getDeterministicKey = async (address, signer, contractAddress) => {
-    if (cachedSecretKey) return cachedSecretKey;
-    
+export const getDeterministicKey = async (
+    address,
+    signer,
+    contractAddress
+) => {
     if (!signer) {
-        throw new Error("Signer is required to authenticate E2EE.");
+        throw new Error(
+            "Signer is required to authenticate E2EE."
+        );
     }
 
-    if (!contractAddress) {
-        throw new Error("Contract address is required for domain separator binding.");
+    if (!address || !contractAddress) {
+        throw new Error(
+            "Wallet address and contract address are required."
+        );
     }
-    
+
+    let cacheKey = null;
+
     try {
-        const chainId = await signer.getChainId();
+        const [signerAddress, chainId] = await Promise.all([
+            signer.getAddress(),
+            signer.getChainId()
+        ]);
 
-        // EIP-712 Domain Separator
-        // This mathematically binds the signature to our specific application, network, and smart contract.
-        // It prevents cross-domain replay attacks (phishing) and cross-chain replay attacks.
-        const domain = {
-            name: "Blockchain Drive",
-            version: "1.0",
-            chainId: chainId,
-            verifyingContract: contractAddress
-        };
+        const normalizedAddress =
+            ethers.utils.getAddress(address).toLowerCase();
 
-        const types = {
-            Authentication: [
-                { name: "message", type: "string" },
-                { name: "intent", type: "string" }
-            ]
-        };
+        const normalizedSignerAddress =
+            ethers.utils.getAddress(signerAddress).toLowerCase();
 
-        const value = {
-            message: "Sign this message to authenticate your E2EE session.",
-            intent: "Derive cryptographic master key for file encryption/decryption."
-        };
+        const normalizedContractAddress =
+            ethers.utils.getAddress(contractAddress).toLowerCase();
 
-        // ethers v5 uses _signTypedData to execute EIP-712
-        const signature = await signer._signTypedData(domain, types, value);
-        
-        const encoder = new TextEncoder();
-        const data = encoder.encode(signature);
-        const hashBuffer = await window.crypto.subtle.digest('SHA-256', data);
-        
-        const hashArray = Array.from(new Uint8Array(hashBuffer));
-        const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-        
-        cachedSecretKey = hashHex;
-        return cachedSecretKey;
+        // Ensure the requested wallet matches the actual signer.
+        if (normalizedAddress !== normalizedSignerAddress) {
+            throw new Error(
+                "Wallet address does not match the signer account."
+            );
+        }
+
+        // Create a unique cache identity for this wallet deployment.
+        cacheKey = [
+            normalizedAddress,
+            chainId,
+            normalizedContractAddress
+        ].join(':');
+
+        // Return an existing key or pending signing operation.
+        if (deterministicKeyCache.has(cacheKey)) {
+            return await deterministicKeyCache.get(cacheKey);
+        }
+
+        const keyPromise = (async () => {
+            // EIP-712 domain separator.
+            const domain = {
+                name: "Blockchain Drive",
+                version: "1.0",
+                chainId: chainId,
+                verifyingContract: contractAddress
+            };
+
+            const types = {
+                Authentication: [
+                    {
+                        name: "message",
+                        type: "string"
+                    },
+                    {
+                        name: "intent",
+                        type: "string"
+                    }
+                ]
+            };
+
+            const value = {
+                message:
+                    "Sign this message to authenticate your E2EE session.",
+                intent:
+                    "Derive cryptographic master key for file encryption/decryption."
+            };
+
+            // Request the wallet signature.
+            const signature = await signer._signTypedData(
+                domain,
+                types,
+                value
+            );
+
+            // Derive a 32-byte key using SHA-256.
+            const encoder = new TextEncoder();
+            const data = encoder.encode(signature);
+
+            const hashBuffer = await window.crypto.subtle.digest(
+                'SHA-256',
+                data
+            );
+
+            const hashArray = Array.from(
+                new Uint8Array(hashBuffer)
+            );
+
+            return hashArray
+                .map(byte => byte.toString(16).padStart(2, '0'))
+                .join('');
+        })();
+
+        // Cache the pending promise to prevent duplicate signatures.
+        deterministicKeyCache.set(cacheKey, keyPromise);
+
+        try {
+            return await keyPromise;
+        } catch (error) {
+            // Remove failed promises from the cache.
+            if (
+                deterministicKeyCache.get(cacheKey) === keyPromise
+            ) {
+                deterministicKeyCache.delete(cacheKey);
+            }
+
+            throw error;
+        }
+
     } catch (error) {
-        console.error("Failed to generate deterministic key", error);
-        throw new Error("Failed to derive E2EE key from signature.");
+        console.error(
+            "Failed to generate deterministic key",
+            error
+        );
+
+        // Preserve the useful wallet mismatch error.
+        if (
+            error.message ===
+            "Wallet address does not match the signer account."
+        ) {
+            throw error;
+        }
+
+        throw new Error(
+            "Failed to derive E2EE key from signature."
+        );
     }
 };
 
 /**
- * Derives the X25519 public key from the 32-byte secret key.
- * @param {string} secretKeyHex - 32-byte hex string (without 0x)
- * @returns {string} Base64 encoded public key
+ * Derives the X25519 public key from a secret key.
+ *
+ * @param {string} secretKeyHex
+ * @returns {string}
  */
 export const derivePublicKey = (secretKeyHex) => {
     return sigUtil.getEncryptionPublicKey(secretKeyHex);
 };
 
 /**
- * Hierarchical Deterministic (HD) Key Derivation.
- * Derives a deterministic Category Sub-Key based on the Master Secret Key and Category Name.
- * @param {string} masterSecretKeyHex - Master 32-byte hex string
- * @param {string} category - Category string (e.g. "General")
- * @returns {Object} { categorySecretHex, categoryPublicKey }
+ * Derives a category-specific keypair.
+ *
+ * @param {string} masterSecretKeyHex
+ * @param {string} category
+ * @returns {Object}
  */
-export const deriveCategoryKeypair = (masterSecretKeyHex, category) => {
+export const deriveCategoryKeypair = (
+    masterSecretKeyHex,
+    category
+) => {
     const hashStr = masterSecretKeyHex + category;
-    const categorySecretHex = ethers.utils.sha256(ethers.utils.toUtf8Bytes(hashStr)).replace('0x', '');
-    const categoryPublicKey = sigUtil.getEncryptionPublicKey(categorySecretHex);
-    return { categorySecretHex, categoryPublicKey };
+
+    const categorySecretHex = ethers.utils
+        .sha256(ethers.utils.toUtf8Bytes(hashStr))
+        .replace('0x', '');
+
+    const categoryPublicKey =
+        sigUtil.getEncryptionPublicKey(categorySecretHex);
+
+    return {
+        categorySecretHex,
+        categoryPublicKey
+    };
 };
 
 /**
- * Encrypts an AES key (or any data) using the receiver's public key.
- * @param {string} data - Data to encrypt
- * @param {string} publicKeyBase64 - Receiver's base64 public key
- * @returns {Promise<string>} Hex encoded string (with 0x prefix) of the encrypted JSON object
+ * Encrypts data using the receiver's public key.
+ *
+ * @param {string} data
+ * @param {string} publicKeyBase64
+ * @returns {Promise<string>}
  */
-export const encryptAESKey = async (data, publicKeyBase64) => {
+export const encryptAESKey = async (
+    data,
+    publicKeyBase64
+) => {
     const encryptedObj = sigUtil.encrypt({
         publicKey: publicKeyBase64,
         data: data,
         version: 'x25519-xsalsa20-poly1305'
     });
+
     const bufferModule = await import('buffer');
     const Buffer = window.Buffer || bufferModule.Buffer;
-    return "0x" + Buffer.from(JSON.stringify(encryptedObj), 'utf8').toString('hex');
+
+    return "0x" + Buffer
+        .from(JSON.stringify(encryptedObj), 'utf8')
+        .toString('hex');
 };
 
 /**
- * Decrypts an AES key using the user's secret key.
- * @param {string} encryptedDataHex - Hex string (with 0x) of the encrypted JSON
- * @param {string} secretKeyHex - User's 32-byte secret key hex (without 0x)
- * @returns {Promise<string>} Decrypted data
+ * Decrypts data using the user's secret key.
+ *
+ * @param {string} encryptedDataHex
+ * @param {string} secretKeyHex
+ * @returns {Promise<string>}
  */
-export const decryptAESKey = async (encryptedDataHex, secretKeyHex) => {
+export const decryptAESKey = async (
+    encryptedDataHex,
+    secretKeyHex
+) => {
     const bufferModule = await import('buffer');
     const Buffer = window.Buffer || bufferModule.Buffer;
-    const jsonStr = Buffer.from(encryptedDataHex.replace('0x', ''), 'hex').toString('utf8');
+
+    const jsonStr = Buffer
+        .from(encryptedDataHex.replace('0x', ''), 'hex')
+        .toString('utf8');
+
     const encryptedObj = JSON.parse(jsonStr);
-    
+
     return sigUtil.decrypt({
         encryptedData: encryptedObj,
         privateKey: secretKeyHex
